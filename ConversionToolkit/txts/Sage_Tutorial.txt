@@ -1,0 +1,591 @@
+@Markdown[1]:
+**Author:** Dominik Borovský, 2024, Pavol Jozef Šafárik University in Košice, Slovakia
+***
+
+
+@=================
+@Markdown[2]:
+# Basic Work with SageMath
+
+In this material, we will show how to work with SageMath (abbr. **Sage**) - a computer algebra software built on Python (i.e., many things you might know from Python will apply here as well). Specifically, through a simple example, you will learn how to:
+  - perform symbolic operations (algebraic manipulations, working with variables, solving equations and inequalities)
+  - use SageMath for numerical calculations
+  - create basic function visualizations
+
+
+@=================
+@Markdown[3]:
+<a href="https://postimages.org/" target="_blank"><img style="display: block; margin-left: auto; margin-right: auto;" src="https://i.postimg.cc/rw6CX24C/logo-sagemath.png" alt="logo-sagemath" border="0" /></a>
+<!-- <a href="https://postimages.org/" target="_blank"><img style="display: block; margin-left: auto; margin-right: auto;" src="https://i.postimg.cc/rw6CX24C/logo-sagemath.png" alt="logo-sagemath" border="0" /></a> -->
+
+
+@=================
+@Markdown[4]:
+## Variables and Functions
+
+In this section, we will explore how to define variables and functions in Sage and how we can work with them. For this purpose, we will use vertical projectile motion as an example. The relationship between position $y$ and time $t$ of an object thrown vertically upward is given by the well-known equation:
+
+$$ y = v_0 t - \dfrac{1}{2} g t^2$$
+
+where:
+- $v_0$ is the initial velocity of the object when thrown upward
+- $g$ is the gravitational acceleration ($g = 9.81~\mathrm{m \cdot s^{-1}}$)
+   
+
+In Sage (and also in Python), the equals sign `=` is used to assign values to variables. These values can be standard Python objects (e.g., `float` - decimal numbers), relationships between variables, as well as special Sage objects.
+   
+
+This allows us to perform simple calculations for specific values of $v_0$, $g$, and $t$, which can be modified by directly editing the code and then obtaining new results. In the case of calculations with non-trivial relationships, this provides certain convenience compared to classical calculations with a calculator, where we can easily make mistakes when entering input, followed by laborious manual re-entry of the calculation.
+  
+
+> _**Note**_: If we place a hash symbol `#` at the beginning of a line in the code, it becomes a comment. This text is not executed as part of the program. In comments, you can place accompanying text that briefly explains what you are doing in a given cell or in the following line.
+
+
+@=================
+@In[1]:
+# load some useful commands from our GitHub repository
+url = "https://raw.githubusercontent.com/JupyterPER/SageMathApplications/refs/heads/main/SageMathCellUtils.sage"
+load(url)
+@=================
+@In[2]:
+# simple calculation of position y of an object thrown vertically upward
+# at time t = 0.6 s
+v0 = 5      # m*s^-1
+g  = 9.81   # m*s^-2
+t  = 0.6    # s
+y  = v0*t - 1/2*g*t^2   # m  
+y
+@=================
+@Markdown[7]:
+Unlike basic Python, Sage provides the ability to define mathematical functions with syntax that is formally identical to mathematical notation. In our example, we can consider $y = y(t)$ and then calculate the position of the object at a specific time $t$ by entering a number in parentheses.
+
+
+@=================
+@In[3]:
+# y(t) as a function of t in Sage
+y(t) = v0*t - 0.5*g*t^2
+y(t)
+@=================
+@In[4]:
+# y(t) for several different times t
+y(0), y(0.2), y(0.4), y(0.6), y(0.8), y(1)
+@=================
+@Markdown[10]:
+> _**Note:**_ In pure Python, you would need to use `def` or `lambda` to define a function. Moreover, instead of the `^` symbol for exponentiation (often used to denote superscript), Python uses `**`. However, Sage has no problem with either notation - you can use both `^` and `**`.
+> 
+> _**Another note:**_ Characters commonly used in code are easily accessible through the **English (US) keyboard layout**, which you can easily switch to using the Windows + spacebar keyboard shortcut after adding it to your system.
+
+
+@=================
+@In[5]:
+# y(t) defined using def
+def y_def(t):
+    return v0*t - 0.5*g*t**2
+
+# y(t) defined using lambda
+y_lambda = lambda t: v0*t - 0.5*g*t**2
+@=================
+@Markdown[12]:
+For more advanced calculations of function values, we can use Python **list** (`list`, defined using square brackets `[]`).
+
+
+@=================
+@In[6]:
+# list of times
+times = [0, 0.2, 0.4, 0.6, 0.8, 1]
+
+# list of function values generated using a for loop
+y_t = [y(t) for t in times]
+y_t
+@=================
+@Markdown[14]:
+> _**Note**:_ When generating the list of function values `y_t`, a method called _List comprehension_ was used. For more Python tricks that also work in Sage, you can check out Jake VanderPlas's book - _A Whirlwind Tour of Python_ (available for free online at [https://jakevdp.github.io/WhirlwindTourOfPython/](https://jakevdp.github.io/WhirlwindTourOfPython/))
+
+
+@=================
+@Markdown[15]:
+A **symbolic variable** in Sage is a special object created using the `var()` command (see the definition of variable `t` in the following cell). The required parameter in parentheses is the variable name in quotes, which will be shown in the output. This name can be different from the one used in the code (see the definition of variable `v0`). If `var()` is used alone, Sage automatically generates a variable with the same name for the code (see the definition of variable `g`).
+
+A mathematical function can then be defined using symbolic variables. If the variable name specified for output can be interpreted in $\LaTeX$, Sage will display it nicely when using the `show()` command, resulting in a neat mathematical formula in the output.
+
+
+@=================
+@In[7]:
+# introduction of symbolic variables
+t  = var("t")
+v0 = var("v_0")
+var("g")
+y(t) = v0*t - 1/2*g*t^2
+show(y(t))
+@=================
+@Markdown[17]:
+If such a name would be too long or if we want to use more advanced output formatting through `show()`, we can add the `latex_name` parameter to `var()` - the name designated for output in $\LaTeX$.
+
+
+@=================
+@In[8]:
+# advanced output formatting - red small Greek phi
+p0 = var("phi_0", 
+           latex_name=r"\color{red}{\varphi_0}")
+show(p0)
+@=================
+@Markdown[19]:
+> **Note:** Setting colors in LaTeX is not necessary, but it can sometimes help when you want to highlight a key variable.
+
+
+@=================
+@In[9]:
+# compare it with this "default" phi
+p1 = var("phi_1")
+show(p1)
+@=================
+@Markdown[21]:
+> **Task:** Define a Sage function - dependency of distance on time $s(t) = v \cdot t + s_0$ for a car moving uniformly, which before the start of measurement managed to travel $s_0 = 1.2 ~ \mathrm{km}$ from the highway parking lot and then moved on the highway at a speed of $v = 130 ~ \mathrm{km/h}$. Calculate the distance traveled by the car during the first 3 hours of the journey at 15-minute intervals.
+    
+Here's space for solving the task, or you can make necessary changes in the previous cells. After writing your solution, run your code by clicking the `Execute` button or using the keyboard shortcut `Shift + Enter`.
+
+
+@=================
+@In[10]:
+
+@=================
+@Markdown[23]:
+## Equations, Inequalities and Their Solutions
+
+In this part, we'll show how to define equations and inequalities in Sage and demonstrate some possibilities for solving them. We'll build on the example with vertical throw upward.
+
+Equations and inequalities represent a specific type of variable in Sage, which can be named just like symbolic variables described in the previous section. An equation is created using two "equals" signs `==` written between the left and right sides of the equation. Similarly, inequalities are defined using the symbols `>=, <=, >, <`. In relation to vertical throw upward, we might be interested in the time when the thrown object returns to its initial position, so we need to solve the equation:
+
+$$y(t) = 0$$
+
+where $y(t)$:
+
+$$y(t) = v_0 t - \dfrac{1}{2} g t^2$$
+
+We could also ask during what time interval the position of the thrown object is $y > 0.5 ~ \mathrm{m}$, which leads us to solving the inequality $y(t) > 0.5~\mathrm{m}$.
+
+
+@=================
+@In[11]:
+# define symbolic variables 
+t  = var("t")
+v0 = var("v_0")
+var("g")
+y(t) = v0*t - 1/2*g*t^2
+
+# time dependence of height in vertical throw upward
+y(t) = v0*t - 1/2*g*t^2
+
+equation = y(t)==0      # define equation
+show(equation)
+
+inequality = y(t)>0.5   # define inequality
+show(inequality)
+@=================
+@Markdown[25]:
+**Numerical solution** (i.e., specific numerical value) and **symbolic solution** (i.e., obtaining a general formula for the sought quantity) of equations, inequalities, or systems of equations in Sage is performed using the `solve()` command.
+   
+
+Inside the parentheses, the first parameter is the equation (or inequality) to be solved, or a Python list containing equations (inequalities) of the system, followed by parameters specifying the symbolic variables for which we want to obtain the solution.
+
+
+@=================
+@Markdown[26]:
+***
+### What solution will the AI assistant suggest?
+
+After adding a free API key from https://mistral.ai/, we can use built-in functions. One of them is AI complete.
+
+- we write the request in comments in an empty code cell
+- in the next cell, we click on the AI complete button, which automatically generates code that sends the request to the chosen LLM model (in this case Mistral Large)
+- the cell output is proposed code that meets our requirements and takes into account previously defined objects
+- we can copy this code and verify its functionality in another, empty cell
+- everytime a new answer by AI asistant 
+- each time, the AI assistant's response may be slightly different when regenerated - if you're not satisfied with the answer, you can get a new response through `Execute` button, or you can clarify your request wording
+
+
+@=================
+@In[12]:
+# Based on the previous code, provide me with the SageMath solution of the "equation"
+# Also printout the solution in latex
+# substitute some numerical values within the solution and printout the values
+@=================
+@In[13]:
+url = 'https://raw.githubusercontent.com/JupyterPER/SageMathApplications/refs/heads/main/AIcommandsMistral%20NB%20player.py'
+load(url)
+
+NBplayer_code = r'''
+In[1]:
+# load some useful commands from our GitHub repository
+url = "https://raw.githubusercontent.com/JupyterPER/SageMathApplications/refs/heads/main/SageMathCellUtils.sage"
+load(url)
+
+In[2]:
+# simple calculation of position y of an object thrown vertically upward
+# at time t = 0.6 s
+v0 = 5      # m*s^-1
+g  = 9.81   # m*s^-2
+t  = 0.6    # s
+y  = v0*t - 1/2*g*t^2   # m  
+y
+
+In[3]:
+# y(t) as a function of t in Sage
+y(t) = v0*t - 0.5*g*t^2
+y(t)
+
+In[4]:
+# y(t) for several different times t
+y(0), y(0.2), y(0.4), y(0.6), y(0.8), y(1)
+
+In[5]:
+# y(t) defined using def
+def y_def(t):
+    return v0*t - 0.5*g*t**2
+
+# y(t) defined using lambda
+y_lambda = lambda t: v0*t - 0.5*g*t**2
+
+In[6]:
+# list of times
+times = [0, 0.2, 0.4, 0.6, 0.8, 1]
+
+# list of function values generated using a for loop
+y_t = [y(t) for t in times]
+y_t
+
+In[7]:
+# introduction of symbolic variables
+t  = var("t")
+v0 = var("v_0")
+var("g")
+y(t) = v0*t - 1/2*g*t^2
+show(y(t))
+
+In[8]:
+# advanced output formatting - red small Greek phi
+p0 = var("phi_0", 
+           latex_name=r"\color{red}{\varphi_0}")
+show(p0)
+
+In[9]:
+# compare it with this "default" phi
+p1 = var("phi_1")
+show(p1)
+
+In[10]:
+
+
+In[11]:
+# define symbolic variables 
+t  = var("t")
+v0 = var("v_0")
+var("g")
+y(t) = v0*t - 1/2*g*t^2
+
+# time dependence of height in vertical throw upward
+y(t) = v0*t - 1/2*g*t^2
+
+equation = y(t)==0      # define equation
+show(equation)
+
+inequality = y(t)>0.5   # define inequality
+show(inequality)
+
+In[12]:
+# Based on the previous code, provide me with the SageMath solution of the "equation"
+# Also printout the solution in latex
+# substitute some numerical values within the solution and printout the values
+'''
+AIanswer = AI_complete(language='english', model='mistral-large-latest', NBplayer_code=NBplayer_code, api_key = '3tJ5ADpk0jLHG8RIXHIN6NFZaAHDOgd0')
+print(AIanswer)
+@=================
+@In[14]:
+# Solving the equation y(t) = 0 for t and printing the solution in LaTeX
+sol = solve(y(t) == 0, t)
+show(sol)
+
+# Substituting numerical values v0 = 5, g = 9.81 into the solution and printing the values
+v0_val = 5
+g_val = 9.81
+sol_numerical = [s.subs({v0: v0_val, g: g_val}) for s in sol]
+sol_numerical
+@=================
+@Markdown[30]:
+***
+
+
+@=================
+@In[15]:
+# general solution of equation, we're interested in time t
+equation_solution = solve(equation, t)
+show(equation_solution)
+@=================
+@Markdown[32]:
+> **Note:** Similar to solving physics problems, you can first define general relationships between quantities and then substitute numerical values for these quantities. For this, you can use Sage equations in the form like `x==1.234`. If we want to perform multiple substitutions simultaneously, we can create a list of Sage equations that are then substituted into the expression using `subs()`, see the following cell.
+
+
+@=================
+@In[16]:
+# numerical values of parameters as a list of equations
+values = [v0==5, g==9.81]
+
+# substituting numerical values of parameters into the equation
+numerical_equation = equation.subs(values)
+show(numerical_equation)
+@=================
+@In[17]:
+# solving the numerical equation
+numerical_solution = solve(numerical_equation, t)
+show(numerical_solution)
+@=================
+@Markdown[35]:
+The solution to the equation is stored in a Python list in the form of equations where the variable is on the left side and the numerical value is on the right side.
+   
+
+We access items in a Python list using square brackets `[]` after the list, between which we specify the position - **index** of the desired item, e.g. `numerical_solution[0]` allows us to access the first stored solution, `numerical_solution[1]` the second one, etc.
+
+> _Note:_ This relates to the specific way Python indexes elements - the first item has index 0, the second has index 1, etc. It may seem less intuitive, but it has its advantages, such as being able to access the last element of the list using index -1 without knowing how many elements the list contains.
+
+
+@=================
+@In[18]:
+numerical_solution[0]
+@=================
+@Markdown[37]:
+The **solutions** provided by Sage are equations from its perspective (indicated by `==`). Therefore, if we want a numerical value, e.g. for further calculation, we need to access the right side of such equation. The **right side of the equation** can be obtained using the `.rhs()` command (right-hand side), the **left side of the equation** using `.lhs()` (left-hand side).
+   
+
+Sage (unlike regular Python) has the property that it shows numerical **results exactly**, without rounding (try adding `sin(pi/3)` to some code and compare with the tabulated value). In our case, this is exactly the value of time $t = \frac{1000}{981} ~ \mathrm{s}$, which we would now like to evaluate approximately. We can convert values in Sage from fractions, square roots, etc. to decimal numbers using `RR()` or by adding `.n()` after the number. By adding `digits=` between the parentheses in `n()`, we can specify how many significant digits the approximate value of the number will be displayed with.
+
+
+@=================
+@In[19]:
+# accessing the equation solution: right side of the 1st element in the solution list
+t_solution = numerical_solution[0].rhs()
+
+# converting the solution from fraction to decimal number, second method with precision of 3 significant digits
+RR(t_solution), t_solution.n(digits=3)
+@=================
+@Markdown[39]:
+Similarly, we can solve inequalities and manipulate their solutions.
+
+
+@=================
+@In[20]:
+# substituting numerical values into the inequality
+inequality_numerical = inequality.subs(values)
+
+# solving the inequality
+inequality_solution = solve(inequality_numerical, t)
+show(inequality_solution)
+@=================
+@Markdown[41]:
+Solutions of inequalities in the form of intervals are stored as a **list of pairs of inequalities** that define the interval. So we need to access:
+- through the first index to the interval: in our case, index 0 accesses the only interval that is the solution to the inequality, the interval itself has the form of a list
+- through the next index we can access the inequalities defining the lower (index 0) and upper (index 1) boundaries of the interval.
+    
+
+Furthermore, similar to the equation solution example, we can select numerical values as right sides of inequalities using `.rhs()`. Finally, we can approximately evaluate exact values using `n()`, as shown in the following cell.
+
+
+@=================
+@In[21]:
+# boundaries of the inequality solution interval
+upper = inequality_solution[0][1].rhs().n(digits=3)
+lower = inequality_solution[0][0].rhs().n(digits=3)
+
+lower, upper   # boundary
+@=================
+@Markdown[43]:
+The **domain of equations/inequalities** can be specified using the `assume()` command (assume). This command can be used to constrain a symbolic variable or specify which number set it belongs to. For example, when solving the equation `equation` that corresponds to the time of impact, only solutions where $t>0$ are physically acceptable (which excludes one of the solutions $t=0$ that corresponds to the beginning of the vertical throw and therefore cannot be the time of impact).
+
+
+@=================
+@In[22]:
+# condition
+assume(t>0)         
+equation_solution_condition = solve(y(t)==0, t)
+
+# compare symbolic solution with equation_solution
+show(equation_solution_condition)
+@=================
+@In[23]:
+# evaluation of equation solution
+equation_solution_condition[0].subs(values)
+@=================
+@In[24]:
+# remove condition
+forget(t>0)
+
+# symbolic solution with "forgotten" condition
+equation_solution_no_condition = solve(y(t)==0, t)
+show(equation_solution_no_condition)
+@=================
+@Markdown[47]:
+## Graphs
+
+To visualize a solution of a physical problem, we often use a graphical representation of a function of one variable. In Sage, it's possible to elegantly produce **high-quality graphical outputs**. The basic tool for creating graphs is the `plot()` command. Following our previous parts, we might be interested in the shape of the time dependence graph $y(t)$ of a thrown object for different initial velocity values $v_0$.
+   
+
+You can view the resulting graph in the next cell (press `Execute` or if you're in cells, press `Shift + Enter`).
+
+> _**Note:**_ First, an empty `graph_format` is defined (plots an empty list `[]`, so nothing). However, it contains the graph title, axis labels (using $\LaTeX$), etc. The subsequent graphs `graph1`, `graph2`, `graph3` contain instructions for plotting individual functions. The final graph `final_graph` is then obtained by simply **"adding" the graphs** that we need.
+
+
+@=================
+@In[25]:
+# y ako funkcia dvoch premenných v0 a t
+g = 9.81
+y_v(v0,t) = v0*t - 1/2*g*t^2
+@=================
+@In[26]:
+# empty graph with formatting
+graph_format = plot([], 
+                   title="Position vs time for vertical throw upward\n with different initial velocities", 
+                   axes_labels=["$t ~ \\mathrm{[s]}$", "$y ~ \\mathrm{[m]}$"],
+                   gridlines=True,
+                   frame=True,
+                   ymin=0, ymax=3)
+@=================
+@In[27]:
+# graph y(t) for v0 = 5 m/s
+graph1 = plot(y_v(5,t), xmin=0, xmax=1.5,
+             color="red", thickness=1,
+             linestyle="--",
+             legend_label="$v_0$ = 5 m/s")
+@=================
+@In[28]:
+# graph y(t) for v0 = 3 m/s
+graph2 = plot(y_v(3,t), color="green", xmin=0, xmax=1.5,
+             thickness=1.5, legend_label="$v_0$ = 3 m/s")
+@=================
+@In[29]:
+# graph y(t) for v0 = 7 m/s
+graph3 = plot(y_v(7,t), color="blue", xmin=0, xmax=1.5,
+             thickness=1.5, linestyle=":",
+             legend_label="$v_0$ = 7 m/s")
+@=================
+@In[30]:
+# merging multiple graphs
+merged_graph = graph1 + graph2 + graph3 + graph_format
+merged_graph
+@=================
+@Markdown[54]:
+## How `plot()` works
+
+In the `plot()` command, a **function of one symbolic variable** whose graph is required is specified between parentheses as a mandatory parameter. It's also appropriate to specify the name of the independent variable. In the case of `graph1`, for example, it's `y(5,t)`, where we substitute $5~\mathrm{m/s}$ for the initial velocity `v0`.
+    
+Additional optional parameters allow modification of the basic output that Sage offers (which may not always be the most suitable for a given situation). The **range** of the $x$-axis can be specified by adding a triplet in the form `(x,L,U)`, which contains the independent variable `x` in the first position, the lower bound `L` in the second position, and the upper bound `U` in the third position. The range of the $y$-axis is determined by adding parameters for the lower bound `ymin` and upper bound `ymax`. This can be done equivalently for the $x$-axis using `xmin` and `xmax`.
+
+**The line color is determined by the `color` parameter**, for which we specify the name of the desired color in English in quotes, for example, `"red"` for red. The palette of colors available in Sage is shown in the image below.
+
+>**Note:** If you want particularly specific graph colors, you can also specify them in hex code (e.g., `"#FF0000"` for red). Hex codes can be easily found in various online applications, such as [https://colors-picker.com/](https://colors-picker.com/)).
+
+
+@=================
+@Markdown[55]:
+<a href='https://postimages.org/' target='_blank'><img src='https://i.postimg.cc/x1dtrD5S/sage-colors.png' border='0' width='100%' alt='sage-colors'/></a>
+
+
+@=================
+@Markdown[56]:
+**Line thickness** is set by adding the `thickness` parameter, which we assign a number indicating the line thickness in points. You can also change the **line style** using the `linestyle` parameter. If we assign `":"` to this parameter, the graph line will be dotted, or for the parameter value `"--"`, the line will be dashed, with other styles also available.
+  
+
+**Axis labels** can be achieved by adding the `axes_labels` parameter, which we assign a list in the form `["x axis", "y axis"]`, where `x axis` and `y axis` are the respective axis names. Combining multiple graphs in one image can be achieved in Sage simply by "adding" them, as shown in the penultimate line. We add a legend to each graph using the `legend_label` parameter, which we assign a legend name in the form `"graph name"`. Axis names and legend names can also be written in $\LaTeX$ if we put them between two `$` characters. We can add a title to the graph using the `title` parameter.
+   
+
+Setting the value `True` for the `gridlines` parameter will display grid lines (you can read approximate values well from the graph) and for the `frame` parameter will enable a frame for the entire graph.
+
+> _**Note:**_ When finalizing your visualizations in Sage, I always recommend activating `gridlines` and `frame` for a neat presentation of results.
+   
+Finally, **graphs can be saved** as images for use outside of Sage using the `.save()` command. Before the dot, specify the graph you want to save, and between parentheses, write the image name and extension indicating the desired image format in quotes. Supported formats include raster images `.png`, `.jpeg`, or vector graphics `.svg` (in **highest quality**).
+
+
+@=================
+@In[31]:
+# after running, a link to the graph image will be displayed in a new window
+# alternative way: right-click on image ==> "Save image as"
+# dpi parameter sets the image resolution, 300 is more than sufficient
+merged_graph.save("y_vs_t_plot.png", dpi=300)
+@=================
+@Markdown[58]:
+At the end of this section, we would look at how a pure Pythonista would create the previous graph using the `matplotlib` library. As you can see, creating a graph in this case first requires importing libraries (`matplotlib` and `numpy`).
+It requires extra steps that have more of a programming rather than mathematical significance (judge for yourself in the following cell). On the other hand, nothing prevents you from using `matplotlib` in Sage, because it's also built into Sage.
+
+
+@=================
+@In[32]:
+import matplotlib.pyplot as plt
+import numpy as np
+
+# setting gravitational acceleration and function y(v0, t)
+g = 9.81
+def y_v(v0, t):
+    return v0*t - 0.5*g*t**2
+
+# creating time array from 0 to 1.5 seconds - y(t) values are calculated point by point
+t = np.linspace(0, 1.5, 300) # creating 300 points for t
+
+# graph y(t) for v0 = 5 m/s
+plt.plot(t, y_v(5, t), 'r--', 
+         linewidth=1.5, 
+         label="$v_0$ = 5 m/s")
+
+# graph y(t) for v0 = 3 m/s
+plt.plot(t, y_v(3, t), 'g', 
+         linewidth=1.5, 
+         label="$v_0$ = 3 m/s")
+
+# graph y(t) for v0 = 7 m/s
+plt.plot(t, y_v(7, t), 'b', 
+         linewidth=1.5, 
+         label="$v_0$ = 7 m/s")
+
+# setting y-axis limits
+plt.ylim(0, 3)
+
+# adding grid, legend, and title
+plt.grid(True)
+plt.legend()
+plt.xlabel("$t ~ \\mathrm{[s]}$")
+plt.ylabel("$y ~ \\mathrm{[m]}$")
+plt.title("Position versus time for vertical upward motion with different initial velocities")
+
+# setting frame around the graph
+plt.gca().set_frame_on(True)
+
+# displaying the graph
+plt.show()
+@=================
+@Markdown[60]:
+# Useful Resources
+- ZIMMERMANN, P. et al, 2018. _Computational Mathematics with SageMath_. First edition. Philadelphia: SIAM. ISBN 978-1-61197-545-1. 
+- BARD, Gregory V., 2015. _Sage for Undergraduates_. Providence: American Mathematical Society. ISBN 978-1-4704-1111-4.
+
+- documentation at https://www.sagemath.org/
+- `help` for any command or object
+
+
+@=================
+@In[33]:
+help(plot)
+@=================
+@Markdown[62]:
+# Space for experiments
+  
+Here you can try calculations or visualizations with Sage (or Python).
+
+
+@=================
+@In[34]:
+
+@=================
+@In[35]:
+
+@=================
+@In[36]:
+
+@=================
+@In[37]:
