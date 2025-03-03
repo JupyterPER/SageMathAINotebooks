@@ -7,7 +7,7 @@ function getBrowserLanguage() {
 
 function makeMenu() {
   var lang = getBrowserLanguage();
-  $('head').first().append('<link rel="stylesheet" href="custom.css"');
+  $('head').first().append('<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathApplications@main//NBplayerAI/css/nbplayer.css"');
   $('body').first().append('<script src="custom.js"></script>');
   // Add header lines
   var read=(lang == 'de')?'Lesen':'Read';

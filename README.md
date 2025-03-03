@@ -8,9 +8,9 @@ There is an [instance of Notebook Player online](https://dahn-research.eu/nbplay
 
 ## Installation
 
-***Local:*** Clone this repo and launch index.html
+*** Local: *** Clone this repo and launch index.html
 
-***On Server:*** Clone this repo on server. Edit nbplayerConfig.js, replacing `'.'` with the URL of your installation
+*** On Server: *** Clone this repo on server. Edit nbplayerConfig.js, replacing `'.'` with the URL of your installation
 
 Replace `resources/logo.png` if you want another logo.
 

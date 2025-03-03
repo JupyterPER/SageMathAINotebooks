@@ -77,7 +77,7 @@ window.onscroll = function() {
     scrollFunction()
 };
 let playerConfig = {
-        panes: "ExecRead",
+        panes: "Exec",
         lang: "sage",
         linked: !0,
         eval: !1,
