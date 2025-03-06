@@ -48,6 +48,8 @@ Here are the requirements for improving the formatting of the SageMath code:
 - Curly braces in this prompt are represented by ASCII codes &#123, &#125
 - Use standard symbols for curly braces instead of ASCII codes &#123, &#125 in your response.
 - DO NOT modify the commands in the SageMath code regarding the language.
+- DO NOT add any other explanations about what you did.
+- In your answer DO NOT repeat given requests.
 ''',
 
 'Explain': '''
@@ -67,7 +69,7 @@ Here are the requirements for your explanation:
 - Use standard symbols for curly braces instead of ASCII codes &#123, &#125 in your response
 ''',
 
-'Sage': '''
+'Sage': r'''
 Ťahák ANALÝZA - Jupyter + Sage
 Predmety ZMF, DGS - Jozef Hanč
 Podla ref. William Stein, Sage Quick Reference: Calculus
@@ -551,7 +553,7 @@ def add_language(message, language):
     return message
 
 def add_sage_references(message):
-    message += f'*Here are some helpfull REFERENCES on using SageMath*\n{priming_ai_assistant['Sage']}\n'
+    message += '*Here are some helpfull REFERENCES on using SageMath*\n' + priming_ai_assistant['Sage'] + '\n'
     return message
 
 def AI_complete(language=None, model=None, print_prompt=False, NBplayer_code=None, api_key = ''):
@@ -586,10 +588,10 @@ def AI_format(language=None, model=None, print_prompt=False, NBplayer_code=None,
     AIresult = AIresult.replace('```python','')
     AIresult = AIresult.replace('```','')
     
-    return AIresult + prompt
+    return AIresult
 
     
-def AI_explain(replace=True, language=None, previous_code=True, model=None, print_prompt=False, NBplayer_code=None, api_key=''):
+def AI_explain(replace=True, language=None, previous_code=False, model=None, print_prompt=False, NBplayer_code=None, api_key=''):
     NBplayer_code_s = sanitize_Ins(NBplayer_code)
     message = add_language(priming_ai_assistant['Explain'], language)
     message = add_sage_references(message)
@@ -602,11 +604,11 @@ def AI_explain(replace=True, language=None, previous_code=True, model=None, prin
         ''' + focal_code + '''*ADITIONAL REQUSTS:*
         ''' + query
     else:
-        prompt = '''*FOCAL CODE:*
+        prompt = message + '''*FOCAL CODE:*
         ''' + focal_code + '''*ADITIONAL REQUSTS:*
         ''' + query
     
     # AI processing
     
     AIresult = AI_generate(prompt, model=model, api_key=api_key)
-    return "\n{}\n".format(AIresult) + prompt
+    return "\n{}\n".format(AIresult)
