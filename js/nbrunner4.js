@@ -364,95 +364,57 @@ function toggleMarkdownMode() {
 }
 
 
-function addControlPanel() {
-	const controlPanel = document.createElement('div');
-    controlPanel.id = 'controls';
-    const navbar = document.getElementById('navbar');
-    
-    if (!navbar) {
-        console.error("Navbar element not found");
-        return;
+function addControlBar(cell) {
+    const controlBar = document.createElement('div');
+    const controlAiBar = document.createElement('div');
+    controlBar.className = 'control-bar';
+    controlAiBar.className = 'control-ai-bar';
+
+    const addAboveBtn = createButtonIco('Add Above', () => addCell(cell, 'above'), 'addAbove');
+    const addBelowBtn = createButtonIco('Add Below', () => addCell(cell, 'below'), 'addBelow');
+    const addFiveBelowBtn = createButtonIco('Add 5 Below', () => addFiveCells(cell, 'below'), 'addBelow');
+    // Custom styling for the 5x indicator
+    addFiveBelowBtn.innerHTML = '<span style="font-size:1em;font-weight:bold;margin-right:2px;">5×</span>' + addFiveBelowBtn.innerHTML;
+
+    const deleteBtn = createButtonIco('Delete', () => deleteCell(cell), 'bin');
+    const moveUpBtn = createButtonIco('Move Up', () => moveCell(cell, 'up'), 'moveUp');
+    const moveDownBtn = createButtonIco('Move Down', () => moveCell(cell, 'down'), 'moveDown');
+    const duplicateBtn = createButtonIco('Duplicate', () => duplicateCell(cell), 'duplicate');
+
+    if (cell.classList.contains('nb-code-cell')) {
+        const convertToMarkdownBtn = createButton('Markdown', () => convertToMarkdown(cell));
+        const aiCompleteBtn = createButtonIco('AI Complete', () => formatAndLoadCodeIntoCell(cell, `AI_complete`, CURRENT_MODEL, API_KEY, CURRENT_LANGUAGE), 'aiComplete');
+        const aiFormatBtn = createButtonIco('AI Format', () => formatAndLoadCodeIntoCell(cell, `AI_format`, CURRENT_MODEL, API_KEY, CURRENT_LANGUAGE), 'aiFormat');
+        const aiExplainBtn = createButtonIco('AI Explain', () => formatAndLoadCodeIntoCell(cell, `AI_explain`, CURRENT_MODEL, API_KEY, CURRENT_LANGUAGE), 'aiExplain');
+        const excelJsonBtn = createButtonIco('Import/Export Excel', () => openExcelImportExportDialog(cell), 'addEditExcel');
+
+        controlBar.appendChild(convertToMarkdownBtn);
+        controlAiBar.appendChild(aiCompleteBtn);
+        controlAiBar.appendChild(aiFormatBtn);
+        controlAiBar.appendChild(aiExplainBtn);
+        controlBar.appendChild(excelJsonBtn);
+    } else if (cell.classList.contains('nb-markdown-cell')) {
+        const previewBtn = createButton('Preview', () => updateMarkdownPreview(cell));
+        controlBar.appendChild(previewBtn);
+        const convertToCodeBtn = createButton('Code', () => convertToCode(cell));
+        const markdownTipsBtn = createButtonIco('Markdown Tips', () => toggleMarkdownTips(cell), 'markdownTips');
+        controlBar.appendChild(convertToCodeBtn);
+        controlBar.appendChild(markdownTipsBtn);
     }
 
-    const input = document.createElement('input');
-    input.type = 'number';
-    input.id = 'delay';
-    input.placeholder = 'Step (ms)';
-    input.min = '1';
-    input.value = RUN_DELAY;
-    input.addEventListener('change', function() {
-        RUN_DELAY = parseInt(this.value) || 1000;
-    });
+    controlBar.appendChild(duplicateBtn);
+    controlBar.appendChild(addFiveBelowBtn); // Add the new "Add 5 Below" button
+    controlBar.appendChild(addBelowBtn);
+    controlBar.appendChild(addAboveBtn);
+    controlBar.appendChild(moveDownBtn);
+    controlBar.appendChild(moveUpBtn);
+    controlBar.appendChild(deleteBtn);
 
-    const runButton = document.createElement('button');
-    runButton.id = 'runAllCellsButton';
-    runButton.textContent = 'Run All Cells';
-
-    const toggleNavbarButton = document.createElement('button');
-    toggleNavbarButton.id = 'toggleNavbar';
-    toggleNavbarButton.textContent = 'Toggle Bar';
-    toggleNavbarButton.onclick = toggleNavbar;
-
-    const editCellsButton = document.createElement('button');
-    editCellsButton.id = 'editCells';
-    editCellsButton.textContent = 'Edit Cells';
-    editCellsButton.onclick = toggleEditMode;
-
-    const exportButton = document.createElement('button');
-    exportButton.id = 'exportCells';
-    exportButton.textContent = 'Export';
-    exportButton.onclick = downloadNotebookText;
-
-    const importButton = document.createElement('button');
-    importButton.id = 'importCells';
-    importButton.textContent = 'Import';
-    importButton.onclick =
-      function() {
-        // Create and trigger a file input
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.txt';
-        fileInput.style.display = 'none';
-
-        fileInput.onchange = function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                importNotebookFromFile(file);
-            }
-            document.body.removeChild(fileInput);
-        };
-
-        document.body.appendChild(fileInput);
-        fileInput.click();
-    };
-
-    const aiSettingsButton = document.createElement('button');
-    aiSettingsButton.id = 'aiSettings';
-    aiSettingsButton.textContent = 'AI Settings';
-    aiSettingsButton.onclick = createModalWindow;
-
-    // Insert the new elements at the beginning of the navbar
-    navbar.insertBefore(exportButton, navbar.firstChild);
-    navbar.insertBefore(importButton, navbar.firstChild);
-    navbar.insertBefore(aiSettingsButton, navbar.firstChild);
-    navbar.insertBefore(editCellsButton, navbar.firstChild);
-    navbar.insertBefore(input, navbar.firstChild);
-    navbar.insertBefore(runButton, navbar.firstChild);
-
-	
-	controlPanel.appendChild(toggleNavbarButton);
-	document.body.insertBefore(controlPanel, main);
-    const linkElement = document.querySelector('link[href="https://dahn-research.eu/nbplayer/css/nbplayer.css"]');
-    if (linkElement) {
-        linkElement.href = "https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css";
+    cell.insertBefore(controlBar, cell.firstChild);
+    // Insert the control AI bar only if API_KEY is defined and not empty
+    if (typeof API_KEY !== 'undefined' && API_KEY !== '') {
+        cell.insertBefore(controlAiBar, controlBar.nextSibling);
     }
-    // Automatically click the Edit Cells button twice
-    setTimeout(() => {
-        editCellsButton.click();
-        setTimeout(() => {
-            editCellsButton.click();
-        }, 100); // 100ms delay between clicks
-    }, 100); // Wait 100ms after creation before first click
 }
 
 
@@ -855,6 +817,38 @@ function addCell(referenceCell, position) {
 function deleteCell(cell) {
 	cell.remove();
     reprocessNotebook();
+}
+
+function addFiveCells(referenceCell, position) {
+    // Create array of 5 new cells
+    const newCells = [];
+    for (let i = 0; i < 5; i++) {
+        newCells.push(createBlankSageCell());
+    }
+
+    if (position === 'above') {
+        // Insert cells above in reverse order to maintain correct sequence
+        for (let i = 4; i >= 0; i--) {
+            referenceCell.parentNode.insertBefore(newCells[i], referenceCell);
+        }
+    } else {
+        // Insert cells below in forward order
+        for (let i = 0; i < 5; i++) {
+            if (i === 0) {
+                referenceCell.parentNode.insertBefore(newCells[i], referenceCell.nextSibling);
+            } else {
+                referenceCell.parentNode.insertBefore(newCells[i], newCells[i-1].nextSibling);
+            }
+        }
+    }
+
+    // Reprocess notebook once after all cells are added
+    reprocessNotebook();
+
+    // Add control bar to each new cell
+    newCells.forEach(cell => {
+        addControlBar(cell);
+    });
 }
 
 function moveCell(cell, direction) {
