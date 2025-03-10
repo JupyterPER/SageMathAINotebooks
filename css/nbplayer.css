@@ -442,3 +442,212 @@ box-sizing: border-box;
     z-index: 9;
     resize: both;
 }
+
+/* CodeMirror Custom Styling */
+.CodeMirror {
+    height: auto;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* Editor container and Markdown cells */
+.editor-container {
+    position: relative;
+    margin-bottom: 10px;
+}
+
+.markdown-textarea {
+    width: 100%;
+    height: 150px;
+    font-family: Consolas, 'Courier New', monospace;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px;
+}
+
+.nb-markdown-cell .CodeMirror {
+    height: auto;
+    min-height: 50px;
+}
+
+/* Add to your CSS file for better visibility of empty markdown cells */
+.empty-markdown-preview {
+    min-height: 30px;
+    border: 1px dashed #ccc;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+    position: relative;
+    cursor: pointer;
+    text-align: center;
+    color: #999;
+}
+
+.empty-markdown-preview::before {
+    content: "Click to edit this markdown cell";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-style: italic;
+    font-size: 14px;
+}
+
+.empty-markdown-preview:hover {
+    background-color: #f0f0f0;
+    border-color: #aaa;
+}
+
+/* Override the comment style so our placeholder doesn't show in the HTML */
+.markdown-preview .comment {
+    display: none;
+}
+
+/* Markdown tips panel */
+.inline-markdown-tips {
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+    padding: 8px;
+    margin-top: 5px;
+    font-size: 12px;
+    border-radius: 4px;
+}
+
+.markdown-tips-list {
+    padding-left: 16px;
+    margin: 5px 0;
+}
+
+.markdown-tips-list li {
+    margin-bottom: 5px;
+}
+
+.markdown-tips-list ul {
+    padding-left: 16px;
+    margin: 5px 0;
+}
+
+/* Modal styling for dialogs */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.modal-content {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    min-width: 300px;
+    text-align: center;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+/* Excel editor modal */
+.excel-editor-modal {
+    z-index: 11000;
+}
+
+.excel-table-container {
+    max-height: 400px;
+    overflow: auto;
+    margin-bottom: 10px;
+    border: 1px solid #eee;
+}
+
+.excel-editor-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+    font-family: Arial, sans-serif;
+}
+
+.excel-editor-table tr:nth-child(1) {
+    background-color: #4CAF50;
+    color: white;
+    text-align: center;
+    font-weight: bold;
+}
+
+.excel-editor-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.excel-editor-table tr:nth-child(odd):not(:first-child) {
+    background-color: #ffffff;
+}
+
+.excel-editor-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+.excel-editor-table input {
+    width: 100%;
+    box-sizing: border-box;
+    border: none;
+    outline: none;
+    padding: 4px;
+    font-family: inherit;
+    background: transparent;
+}
+
+/* Button styling */
+.modal-button {
+    padding: 8px 16px;
+    margin: 0 5px;
+    cursor: pointer;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+}
+
+.modal-button:hover {
+    background-color: #45a049;
+}
+
+/* AI Settings modal */
+.ai-settings-modal .close {
+    float: right;
+    cursor: pointer;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.ai-settings-modal .close:hover {
+    color: #555;
+}
+
+.ai-settings-modal .input-group {
+    margin: 10px 0;
+    text-align: left;
+}
+
+.ai-settings-modal input,
+.ai-settings-modal select {
+    width: 100%;
+    padding: 8px;
+    margin: 8px 0;
+    box-sizing: border-box;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.ai-settings-modal .warning-message {
+    color: #e74c3c;
+    margin: 15px 0;
+    padding: 10px;
+    background: #fdecea;
+    border-left: 4px solid #e74c3c;
+}

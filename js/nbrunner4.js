@@ -4,7 +4,7 @@ function getBrowserLanguage() {
 
 function makeMenu() {
     var e = getBrowserLanguage();
-    $("head").first().append('<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css"'), $("body").first().append('<script src="custom.js"><\/script>');
+    $("head").first().append('<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/SageMathAINotebooks@main/css/nbplayer.css"'), $("body").first().append('<script src="custom.js"><\/script>');
     var t = "de" == e ? "Code ausblenden/einblenden" : "Show / Hide Code",
         n = "de" == e ? "Code-Zellen in der gegebenen Reihenfolge ausfĂĽhren!" : "Execute Cells in the Sequence Given!",
         a = "de" == e ? "Speichern" : "Save",
@@ -21,7 +21,17 @@ function scrollFunction() {
 }
 
 function saveHtml() {
-
+    // Before removing control bars, make sure to save all CodeMirror content
+    document.querySelectorAll('.nb-markdown-cell').forEach(cell => {
+        if (cell.cmEditor) {
+            const textarea = cell.querySelector('textarea');
+            if (textarea) {
+                const content = cell.cmEditor.getValue();
+                textarea.value = content;
+                textarea.setAttribute('data-original', content);
+            }
+        }
+    });
 	removeAllControlBars();
 	// Update the content of all input and preview elements
     document.querySelectorAll('[id^="mdinput"]').forEach((input, index) => {
@@ -42,7 +52,49 @@ function saveHtml() {
     const currentmodel = typeof CURRENT_MODEL !== 'undefined' ? JSON.stringify(CURRENT_MODEL) : JSON.stringify('');
     const currentlanguage = typeof CURRENT_LANGUAGE !== 'undefined' ? JSON.stringify(CURRENT_LANGUAGE) : JSON.stringify('');
     const delayValue = document.getElementById('delay') ? parseInt(document.getElementById('delay').value) || RUN_DELAY : RUN_DELAY;
-    var e = new Blob(["<!DOCTYPE html>\n<html>\n<head>" + $("head").html() + '</head>\n<body>\n<script src="https://cdn.jsdelivr.net/npm/texme@1.2.2"></script>\n<div id="main">' + $("#main").html() + '</div>\n  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW" crossorigin="anonymous"><\/script>\n  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"><\/script>\n  <script src="https://sagecell.sagemath.org/embedded_sagecell.js"><\/script>\n  <script src="' + playerConfig.playerPath + '/vendor/js/FileSaver.min.js"><\/script>\n  <script src="' + playerConfig.playerPath + '/nbplayerConfig.js"><\/script>\n  <script>let RUN_DELAY = '+ RUN_DELAY +';</script>\n  <script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner4.js"><\/script>\n  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>\n  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css">\n  <script>\n    playerConfig=' + JSON.stringify(playerConfig) + ";\n    playerMode=" + JSON.stringify(playerMode) + ";\n    makeMenu();\n    localize();\n    loadStatus();\n    makeSageCells(playerConfig);\n    launchPlayer();\n    addControlPanel();\n    setupRunAllCells();\n    window.onload = initializeMarkdownCells;\n    let API_KEY=" + apikey + ";\n    let CURRENT_MODEL=" + currentmodel + ";\n    let CURRENT_LANGUAGE=" + currentlanguage + ";\n  <\/script>\n</body>\n</html>"], {
+    var e = new Blob([
+        "<!DOCTYPE html>\n<html>\n<head>" +
+        $("head").html() +
+        '</head>\n<body>\n' +
+        '<script src="https://cdn.jsdelivr.net/npm/texme@1.2.2"></script>\n' +
+        '<div id="main">' + $("#main").html() + '</div>\n' +
+        '<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW" crossorigin="anonymous"></script>\n' +
+        '<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>\n' +
+        '<script src="https://sagecell.sagemath.org/embedded_sagecell.js"></script>\n' +
+        '<script src="' + playerConfig.playerPath + '/vendor/js/FileSaver.min.js"></script>\n' +
+        '<script src="' + playerConfig.playerPath + '/nbplayerConfig.js"></script>\n' +
+
+        '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/markdown/markdown.min.js"></script>\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldcode.min.js"></script>\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.js"></script>\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/markdown-fold.min.js"></script>\n' +
+        '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.css">\n' +
+
+        '<script>let RUN_DELAY = '+ RUN_DELAY +';</script>\n' +
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner4.js"></script>\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>\n' +
+        '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/SageMathAINotebooks@main/css/nbplayer.css">\n' +
+        '<script>\n' +
+        '  playerConfig=' + JSON.stringify(playerConfig) + ';\n' +
+        '  playerMode=' + JSON.stringify(playerMode) + ';\n' +
+        '  makeMenu();\n' +
+        '  localize();\n' +
+        '  loadStatus();\n' +
+        '  makeSageCells(playerConfig);\n' +
+        '  launchPlayer();\n' +
+        '  addControlPanel();\n' +
+        '  setupRunAllCells();\n' +
+        '  window.onload = initializeMarkdownCells;\n' +
+        '  let API_KEY=' + apikey + ';\n' +
+        '  let CURRENT_MODEL=' + currentmodel + ';\n' +
+        '  let CURRENT_LANGUAGE=' + currentlanguage + ';\n' +
+        '</script>\n' +
+        '</body>\n</html>'
+    ], {
         type: "text/plain;charset=utf-8"
     });
     saveAs(e, playerConfig.name + ".html");
@@ -77,7 +129,7 @@ window.onscroll = function() {
     scrollFunction()
 };
 let playerConfig = {
-        panes: "Exec",
+        panes: "ExecRead",
         lang: "sage",
         linked: !0,
         eval: !1,
@@ -278,143 +330,176 @@ document.addEventListener('DOMContentLoaded', removeDuplicateStyles);
 
 
 
-let editMode = true;
+let editMode = false;
 
 function toggleEditMode() {
-    if (editMode) {
-		toggleMarkdownMode();
-        editMode = false;
-    } else {
-		toggleMarkdownMode();
-        editMode = true;
-    }
-}
+    // First, determine what the new state should be (opposite of current)
+    const newEditModeState = !editMode;
 
-function updateMarkdownPreview(cell) {
-    const input = cell.querySelector('[id^="mdinput"]');
-    const preview = cell.querySelector('[id^="preview"]');
+    // Get all markdown cells
+    const markdownCells = document.querySelectorAll('.nb-cell.nb-markdown-cell');
 
-    if (!input || !preview) {
-        console.error("Input or preview element not found in the cell.");
-        return;
-    }
+    markdownCells.forEach(cell => {
+        // Get the Edit/View toggle button for this cell
+        const toggleButton = cell.querySelector('.control-bar button:first-child');
+        if (!toggleButton) return; // Skip if no button found
 
-    // Store original markdown
-    input.setAttribute('data-original', input.value);
+        // Handle CodeMirror cells
+        if (cell.cmEditor) {
+            const cmElement = cell.querySelector('.CodeMirror');
+            const preview = cell.querySelector('.markdown-preview');
 
-    // Render content
-    if (typeof texme !== 'undefined' && texme.render) {
-        const output = texme.render(input.value);
-        preview.innerHTML = output;
-
-        // Ensure all hyperlinks in the preview open in a new tab
-        preview.querySelectorAll('a').forEach(link => {
-            link.setAttribute('target', '_blank');
-            link.setAttribute('rel', 'noopener noreferrer');
-        });
-    } else {
-        console.error("Texme is not defined or not initialized.");
-    }
-
-    // Hide input, show preview
-    input.style.display = 'block';
-    preview.style.display = 'block';
-
-    // Reset and typeset MathJax
-    window.MathJax.texReset();
-    window.MathJax.typesetPromise([preview]);
-}
-
-
-function toggleMarkdownMode() {
-    var inputs = document.querySelectorAll('[id^="mdinput"]');
-    var previews = document.querySelectorAll('[id^="preview"]');
-    inputs.forEach((input, index) => {
-        var preview = previews[index];
-
-        if (editMode) {
-            // Show input, hide preview
-            input.value = input.getAttribute('data-original') || '';
-            input.style.display = 'block';
-            preview.style.display = 'block';
-        } else {
-            // Store original markdown
-            input.setAttribute('data-original', input.value);
-
-            // Render content
-            if (typeof texme !== 'undefined' && texme.render) {
-                var output = texme.render(input.value);
-                preview.innerHTML = output;
+            if (newEditModeState) {
+                // Switch to edit mode
+                cmElement.style.display = 'block';
+                preview.style.display = 'block';
+                cell.cmEditor.refresh(); // Important for CM to render correctly
+                toggleButton.textContent = 'View';
             } else {
-                console.error("Texme is not defined or not initialized.");
+                // Switch to view mode
+                cmElement.style.display = 'none';
+                preview.style.display = 'block';
+
+                // Update the preview with the latest content
+                renderMarkdownWithCM(cell.cmEditor, preview);
+                toggleButton.textContent = 'Edit';
             }
-            input.style.display = 'none';
-            preview.style.display = 'block';
+        } else {
+            // Handle traditional cells
+            const input = cell.querySelector('[id^="mdinput"]');
+            const preview = cell.querySelector('[id^="preview"]');
+
+            if (!input || !preview) return; // Skip if elements not found
+
+            if (newEditModeState) {
+                // Switch to edit mode
+                input.style.display = 'block';
+                preview.style.display = 'block';
+                toggleButton.textContent = 'View';
+            } else {
+                // Switch to view mode
+                input.style.display = 'none';
+                preview.style.display = 'block';
+
+                // Update preview
+                if (typeof renderMarkdown === 'function') {
+                    renderMarkdown(input, preview);
+                } else if (typeof texme !== 'undefined' && texme.render) {
+                    preview.innerHTML = texme.render(input.value);
+
+                    // Process math if available
+                    if (window.MathJax) {
+                        window.MathJax.texReset();
+                        window.MathJax.typesetPromise([preview]);
+                    }
+                }
+                toggleButton.textContent = 'Edit';
+            }
         }
     });
 
-    if (!editMode) {
-        // Only reset and typeset MathJax once after all previews are updated
-        window.MathJax.texReset();
-        window.MathJax.typesetPromise();
-    }
+    // Update the global edit mode state
+    editMode = newEditModeState;
 
-    // Toggle editMode after processing all elements
-    editMode = !editMode;
+    // Optionally update the "Edit Cells" button text to reflect the current state
+    const editCellsButton = document.getElementById('editCells');
+    if (editCellsButton) {
+        editCellsButton.textContent = editMode ? 'View Mode' : 'Edit Mode';
+    }
 }
 
 
-function addControlBar(cell) {
-    const controlBar = document.createElement('div');
-    const controlAiBar = document.createElement('div');
-    controlBar.className = 'control-bar';
-    controlAiBar.className = 'control-ai-bar';
 
-    const addAboveBtn = createButtonIco('Add Above', () => addCell(cell, 'above'), 'addAbove');
-    const addBelowBtn = createButtonIco('Add Below', () => addCell(cell, 'below'), 'addBelow');
-    const addFiveBelowBtn = createButtonIco('Add 5 Below', () => addFiveCells(cell, 'below'), 'addBelow');
-    // Custom styling for the 5x indicator
-    addFiveBelowBtn.innerHTML = '<span style="font-size:1em;font-weight:bold;margin-right:2px;">5×</span>' + addFiveBelowBtn.innerHTML;
 
-    const deleteBtn = createButtonIco('Delete', () => deleteCell(cell), 'bin');
-    const moveUpBtn = createButtonIco('Move Up', () => moveCell(cell, 'up'), 'moveUp');
-    const moveDownBtn = createButtonIco('Move Down', () => moveCell(cell, 'down'), 'moveDown');
-    const duplicateBtn = createButtonIco('Duplicate', () => duplicateCell(cell), 'duplicate');
-
-    if (cell.classList.contains('nb-code-cell')) {
-        const convertToMarkdownBtn = createButton('Markdown', () => convertToMarkdown(cell));
-        const aiCompleteBtn = createButtonIco('AI Complete', () => formatAndLoadCodeIntoCell(cell, `AI_complete`, CURRENT_MODEL, API_KEY, CURRENT_LANGUAGE), 'aiComplete');
-        const aiFormatBtn = createButtonIco('AI Format', () => formatAndLoadCodeIntoCell(cell, `AI_format`, CURRENT_MODEL, API_KEY, CURRENT_LANGUAGE), 'aiFormat');
-        const aiExplainBtn = createButtonIco('AI Explain', () => formatAndLoadCodeIntoCell(cell, `AI_explain`, CURRENT_MODEL, API_KEY, CURRENT_LANGUAGE), 'aiExplain');
-        const excelJsonBtn = createButtonIco('Import/Export Excel', () => openExcelImportExportDialog(cell), 'addEditExcel');
-
-        controlBar.appendChild(convertToMarkdownBtn);
-        controlAiBar.appendChild(aiCompleteBtn);
-        controlAiBar.appendChild(aiFormatBtn);
-        controlAiBar.appendChild(aiExplainBtn);
-        controlBar.appendChild(excelJsonBtn);
-    } else if (cell.classList.contains('nb-markdown-cell')) {
-        const previewBtn = createButton('Preview', () => updateMarkdownPreview(cell));
-        controlBar.appendChild(previewBtn);
-        const convertToCodeBtn = createButton('Code', () => convertToCode(cell));
-        const markdownTipsBtn = createButtonIco('Markdown Tips', () => toggleMarkdownTips(cell), 'markdownTips');
-        controlBar.appendChild(convertToCodeBtn);
-        controlBar.appendChild(markdownTipsBtn);
+function addControlPanel() {
+	const controlPanel = document.createElement('div');
+    controlPanel.id = 'controls';
+    const navbar = document.getElementById('navbar');
+    
+    if (!navbar) {
+        console.error("Navbar element not found");
+        return;
     }
 
-    controlBar.appendChild(duplicateBtn);
-    controlBar.appendChild(addFiveBelowBtn); // Add the new "Add 5 Below" button
-    controlBar.appendChild(addBelowBtn);
-    controlBar.appendChild(addAboveBtn);
-    controlBar.appendChild(moveDownBtn);
-    controlBar.appendChild(moveUpBtn);
-    controlBar.appendChild(deleteBtn);
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.id = 'delay';
+    input.placeholder = 'Step (ms)';
+    input.min = '1';
+    input.value = RUN_DELAY;
+    input.addEventListener('change', function() {
+        RUN_DELAY = parseInt(this.value) || 1000;
+    });
 
-    cell.insertBefore(controlBar, cell.firstChild);
-    // Insert the control AI bar only if API_KEY is defined and not empty
-    if (typeof API_KEY !== 'undefined' && API_KEY !== '') {
-        cell.insertBefore(controlAiBar, controlBar.nextSibling);
+    const runButton = document.createElement('button');
+    runButton.id = 'runAllCellsButton';
+    runButton.textContent = 'Run All Cells';
+
+    const toggleNavbarButton = document.createElement('button');
+    toggleNavbarButton.id = 'toggleNavbar';
+    toggleNavbarButton.textContent = 'Toggle Bar';
+    toggleNavbarButton.onclick = toggleNavbar;
+
+    const editCellsButton = document.createElement('button');
+    editCellsButton.id = 'editCells';
+    editCellsButton.textContent = editMode ? 'View Mode' : 'Edit Mode';
+    editCellsButton.onclick = toggleEditMode;
+
+    const exportButton = document.createElement('button');
+    exportButton.id = 'exportCells';
+    exportButton.textContent = 'Export';
+    exportButton.onclick = downloadNotebookText;
+
+    const importButton = document.createElement('button');
+    importButton.id = 'importCells';
+    importButton.textContent = 'Import';
+    importButton.onclick =
+      function() {
+        // Create and trigger a file input
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.txt';
+        fileInput.style.display = 'none';
+
+        fileInput.onchange = function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                importNotebookFromFile(file);
+            }
+            document.body.removeChild(fileInput);
+        };
+
+        document.body.appendChild(fileInput);
+        fileInput.click();
+    };
+
+    const aiSettingsButton = document.createElement('button');
+    aiSettingsButton.id = 'aiSettings';
+    aiSettingsButton.textContent = 'AI Settings';
+    aiSettingsButton.onclick = createModalWindow;
+
+    // Insert the new elements at the beginning of the navbar
+    navbar.insertBefore(exportButton, navbar.firstChild);
+    navbar.insertBefore(importButton, navbar.firstChild);
+    navbar.insertBefore(aiSettingsButton, navbar.firstChild);
+    navbar.insertBefore(editCellsButton, navbar.firstChild);
+    navbar.insertBefore(input, navbar.firstChild);
+    navbar.insertBefore(runButton, navbar.firstChild);
+
+	
+	controlPanel.appendChild(toggleNavbarButton);
+	document.body.insertBefore(controlPanel, main);
+    const linkElement = document.querySelector('link[href="https://dahn-research.eu/nbplayer/css/nbplayer.css"]');
+    if (linkElement) {
+        linkElement.href = "https://cdn.jsdelivr.net/gh/SageMathAINotebooks@main/css/nbplayer.css";
     }
+    // Automatically click the Edit Cells button twice
+    setTimeout(() => {
+        editCellsButton.click();
+        setTimeout(() => {
+            editCellsButton.click();
+        }, 100); // 100ms delay between clicks
+    }, 100); // Wait 100ms after creation before first click
 }
 
 
@@ -561,85 +646,6 @@ function showCode(codeCell) {
     }
 }
 
-function convertToMarkdown(codeCell) {
-    // Extract all lines of text from the code cell
-    const codeLines = codeCell.querySelectorAll(".CodeMirror-code > div > pre > span");
-    const codeText = Array.from(codeLines)
-        .map(line => line.textContent)
-        .join('\n');
-
-    const markdownCell = document.createElement('div');
-    markdownCell.className = 'nb-cell nb-markdown-cell';
-    markdownCell.innerHTML = `
-		
-        <textarea id="mdinput" placeholder="Enter your Markdown or HTML here" style="width: 100%; height:120px; display: none; font-family: Consolas, 'Courier New', monospace;" data-original=""></textarea>
-        <div id="preview"><p><em></em></p></div>
-    `;
-
-    // Replace the code cell with the new markdown cell
-    codeCell.parentNode.replaceChild(markdownCell, codeCell);
-
-    // Get the textarea element
-    const textarea = markdownCell.querySelector('textarea');
-
-    // Set the extracted text as the value of the textarea
-    textarea.value = codeText;
-
-    // Update the data-original attribute
-    textarea.setAttribute('data-original', codeText);
-
-    //toggleEditMode();
-	updateMarkdownPreview(markdownCell);
-	addControlBar(markdownCell);
-}
-
-
-
-
-function initializeMarkdownCells() {
-  var editCellsButton = document.getElementById('editCellsButton');
-  var inputs = document.querySelectorAll('[id^="mdinput"]');
-  var previews = document.querySelectorAll('[id^="preview"]');
-  var editMode = false;
-
-  editCellsButton.onclick = function () {
-    editMode = !editMode;
-
-    inputs.forEach((input, index) => {
-      var preview = previews[index];
-
-      if (editMode) {
-        // Switch to edit mode
-        input.value = input.getAttribute('data-original') || input.value;
-        input.style.display = 'block';
-        preview.style.display = 'none';
-      } else {
-        // Switch to preview mode
-        input.setAttribute('data-original', input.value);
-
-        if (typeof texme !== 'undefined' && texme.render) {
-          var output = texme.render(input.value);
-          preview.innerHTML = output;
-        } else {
-          console.error("Texme is not defined or not initialized.");
-        }
-
-        input.style.display = 'none';
-        preview.style.display = 'block';
-      }
-    });
-
-    if (!editMode) {
-      // Only reset and typeset MathJax once after all previews are updated
-      window.MathJax.texReset();
-      window.MathJax.typesetPromise();
-    }
-
-    // Update button text based on mode
-    editCellsButton.textContent = editMode ? 'Save Changes' : 'Edit Cells';
-  }
-}
-
 function initializeCells() {
 	const cells = document.querySelectorAll('.nb-cell.nb-code-cell, .nb-cell.nb-markdown-cell');
 	cells.forEach(addControlBar);
@@ -653,6 +659,15 @@ function addControlBar(cell) {
 
     const addAboveBtn = createButtonIco('Add Above', () => addCell(cell, 'above'), 'addAbove');
     const addBelowBtn = createButtonIco('Add Below', () => addCell(cell, 'below'), 'addBelow');
+    const addFiveBelowBtn = createButtonIco('Add 5 Below', () => addFiveCells(cell, 'below'), 'addBelow');
+    // Custom styling for the 5x indicator
+    addFiveBelowBtn.innerHTML = '<span style="font-size:1em;font-weight:bold;margin-right:2px;">5×</span>' + addFiveBelowBtn.innerHTML;
+
+    const addMarkdownAboveBtn = createButtonIco('Add Markdown Above', () => addMarkdownCell(cell, 'above'), 'addAbove');
+    addMarkdownAboveBtn.innerHTML = '<span style="font-size:1em;font-weight:bold;margin-right:2px;">MD</span>' + addMarkdownAboveBtn.innerHTML;
+    const addMarkdownBelowBtn = createButtonIco('Add Markdown Below', () => addMarkdownCell(cell, 'below'), 'addBelow');
+    addMarkdownBelowBtn.innerHTML = '<span style="font-size:1em;font-weight:bold;margin-right:2px;">MD</span>' + addMarkdownBelowBtn.innerHTML;
+
     const deleteBtn = createButtonIco('Delete', () => deleteCell(cell), 'bin');
     const moveUpBtn = createButtonIco('Move Up', () => moveCell(cell, 'up'), 'moveUp');
     const moveDownBtn = createButtonIco('Move Down', () => moveCell(cell, 'down'), 'moveDown');
@@ -671,15 +686,38 @@ function addControlBar(cell) {
         controlAiBar.appendChild(aiExplainBtn);
         controlBar.appendChild(excelJsonBtn);
     } else if (cell.classList.contains('nb-markdown-cell')) {
-        const previewBtn = createButton('Preview', () => updateMarkdownPreview(cell));
-        controlBar.appendChild(previewBtn);
+        // Determine the current state of the markdown cell
+        let isInEditMode = false;
+
+        // For CodeMirror-based cells
+        if (cell.cmEditor) {
+            const cmElement = cell.querySelector('.CodeMirror');
+            isInEditMode = cmElement && cmElement.style.display === 'block';
+        } else {
+            // For traditional cells
+            const input = cell.querySelector('[id^="mdinput"]');
+            isInEditMode = input && input.style.display === 'block';
+        }
+
+        // Set the appropriate button text based on the current state
+        const buttonText = isInEditMode ? 'View' : 'Edit';
+        const editToggleBtn = createButton(buttonText, () => toggleSingleCellEditMode(cell));
+        editToggleBtn.id = 'edit-toggle-' + Date.now(); // Add unique ID for state tracking
+
         const convertToCodeBtn = createButton('Code', () => convertToCode(cell));
         const markdownTipsBtn = createButtonIco('Markdown Tips', () => toggleMarkdownTips(cell), 'markdownTips');
+
+        controlBar.appendChild(editToggleBtn);
         controlBar.appendChild(convertToCodeBtn);
         controlBar.appendChild(markdownTipsBtn);
     }
 
+    // Add the markdown cell creation buttons to all cells
+    controlBar.appendChild(addMarkdownBelowBtn);
+    controlBar.appendChild(addMarkdownAboveBtn);
+
     controlBar.appendChild(duplicateBtn);
+    controlBar.appendChild(addFiveBelowBtn);
     controlBar.appendChild(addBelowBtn);
     controlBar.appendChild(addAboveBtn);
     controlBar.appendChild(moveDownBtn);
@@ -797,13 +835,15 @@ function createBlankSageCell() {
 	content.className = 'cell-content';
 	codeCell.appendChild(content);
 	return codeCell;
-	
+
 }
+
+
 
 
 function addCell(referenceCell, position) {
 	const newCell = createBlankSageCell();
-	
+
 
 	if (position === 'above') {
 		referenceCell.parentNode.insertBefore(newCell, referenceCell);
@@ -815,8 +855,16 @@ function addCell(referenceCell, position) {
 }
 
 function deleteCell(cell) {
-	cell.remove();
-    reprocessNotebook();
+    // Check if the cell is a code cell before removing it
+    const isCodeCell = cell.classList.contains('nb-code-cell');
+
+    // Remove the cell
+    cell.remove();
+
+    // Only reprocess the notebook if a code cell was deleted
+    if (isCodeCell) {
+        reprocessNotebook();
+    }
 }
 
 function addFiveCells(referenceCell, position) {
@@ -851,63 +899,156 @@ function addFiveCells(referenceCell, position) {
     });
 }
 
+
 function moveCell(cell, direction) {
-	const parent = cell.parentNode;
-	if (direction === 'up' && cell.previousElementSibling) {
-		parent.insertBefore(cell, cell.previousElementSibling);
-	} else if (direction === 'down' && cell.nextElementSibling) {
-		parent.insertBefore(cell.nextElementSibling, cell);
-	}
+    // Check if the cell is a code cell before moving it
+    const isCodeCell = cell.classList.contains('nb-code-cell');
+
+    const parent = cell.parentNode;
+
+    // Store the original position to check if we actually moved the cell
+    const originalIndex = Array.from(parent.children).indexOf(cell);
+
+    if (direction === 'up' && cell.previousElementSibling) {
+        parent.insertBefore(cell, cell.previousElementSibling);
+    } else if (direction === 'down' && cell.nextElementSibling) {
+        parent.insertBefore(cell.nextElementSibling, cell);
+    }
+
+    // Get new position to check if cell actually moved
+    const newIndex = Array.from(parent.children).indexOf(cell);
+
+    // Only reprocess the notebook if a code cell was moved AND it actually changed position
+    if (isCodeCell && originalIndex !== newIndex) {
+        reprocessNotebook();
+    }
 }
 
 function duplicateCell(cell) {
-	const newCell = cell.cloneNode(true);
-	cell.parentNode.insertBefore(newCell, cell.nextSibling);
-	reprocessNotebook();
-	removeControlBar(newCell);
-	addControlBar(newCell);	
+    // Check if the cell is a code cell
+    const isCodeCell = cell.classList.contains('nb-code-cell');
+
+    // Special handling for markdown cells
+    if (cell.classList.contains('nb-markdown-cell')) {
+        // We need to create a new markdown cell properly instead of cloning
+
+        // Get the content from the original cell
+        let content = '';
+        if (cell.cmEditor) {
+            // Get content from CodeMirror instance
+            content = cell.cmEditor.getValue();
+        } else {
+            // Fallback to textarea
+            const textarea = cell.querySelector('textarea');
+            if (textarea) {
+                content = textarea.value || textarea.getAttribute('data-original') || '';
+            }
+        }
+
+        // Create a new markdown cell with this content
+        const editorId = 'md-editor-' + Date.now();
+        const previewId = 'preview-' + Date.now();
+
+        // Create the new cell
+        const newCell = document.createElement('div');
+        newCell.className = 'nb-cell nb-markdown-cell';
+        newCell.innerHTML = `
+            <div class="editor-container">
+            <textarea id="${editorId}" placeholder="Enter your Markdown or HTML here" 
+                      class="markdown-textarea"
+                      data-original="">${content}</textarea>
+            </div>
+            <div id="${previewId}" class="markdown-preview"></div>
+        `;
+
+        // Insert the new cell after the original one
+        cell.parentNode.insertBefore(newCell, cell.nextSibling);
+
+        // Get the textarea element
+        const textarea = newCell.querySelector(`#${editorId}`);
+        textarea.setAttribute('data-original', content);
+
+        // Initialize CodeMirror for the new cell
+        const editor = CodeMirror.fromTextArea(textarea, {
+            mode: 'markdown',
+            lineNumbers: true,
+            lineWrapping: true,
+            theme: 'default',
+            extraKeys: {"Ctrl-Space": "autocomplete"},
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            foldGutter: true,
+            gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+            highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
+        });
+
+        // Set the height to match original cell
+        const originalHeight = cell.querySelector('.CodeMirror').getAttribute('data-original-height') || '150px';
+        editor.setSize(null, parseInt(originalHeight, 10));
+        newCell.querySelector('.CodeMirror').setAttribute('data-original-height', originalHeight);
+
+        // Store the CM instance on the cell
+        newCell.cmEditor = editor;
+
+        // Set up event handlers for rendering
+        editor.on('change', () => {
+            const preview = newCell.querySelector('.markdown-preview');
+            if (preview) {
+                renderMarkdownWithCM(editor, preview);
+            }
+        });
+
+        // Match the visibility state of the original cell
+        const isInEditMode = cell.querySelector('.CodeMirror').style.display === 'block';
+        newCell.querySelector('.CodeMirror').style.display = isInEditMode ? 'block' : 'none';
+        newCell.querySelector('.markdown-preview').style.display = 'block';
+
+        // Render the initial content
+        const preview = newCell.querySelector('.markdown-preview');
+        renderMarkdownWithCM(editor, preview);
+
+        // Add control bar to the new cell
+        addControlBar(newCell);
+
+        // Update the edit/view button text to match the current state
+        const editButton = newCell.querySelector('.control-bar button:first-child');
+        if (editButton) {
+            editButton.textContent = isInEditMode ? "View Cell" : "Edit Cell";
+        }
+
+        return; // Exit early as we've handled the markdown cell duplication
+    }
+
+    // For code cells, use the original cloning approach
+    const newCell = cell.cloneNode(true);
+    cell.parentNode.insertBefore(newCell, cell.nextSibling);
+
+    // Only reprocess the notebook if a code cell was duplicated
+    if (isCodeCell) {
+        reprocessNotebook();
+    }
+
+    // Replace the control bar
+    removeControlBar(newCell);
+    addControlBar(newCell);
 }
+
 
 function createCodeCell(content) {
     const codeCell = document.createElement('div');
     codeCell.className = 'nb-cell nb-code-cell';
-    
+
     const computeDiv = document.createElement('div');
     computeDiv.className = 'compute';
-    
+
     const script = document.createElement('nb-input');
     script.type = 'text/x-sage';
     script.textContent = content;
-    
+
     computeDiv.appendChild(script);
     codeCell.appendChild(computeDiv);
-    
+
     return codeCell;
-}
-
-function convertToCode(markdownCell) {
-	const markdownTextRaw = markdownCell.querySelector('textarea').value;
-	markdownText = markdownTextRaw.replace(/[\u200B]/g, '');
-    const codeCell = createCodeCell(markdownText);
-    const uniqueId = 'code-cell-' + Date.now();
-    codeCell.id = uniqueId;
-    markdownCell.parentNode.replaceChild(codeCell, markdownCell);
-
-    reprocessNotebook();
-
-    // Use setTimeout to delay our operations slightly
-    setTimeout(() => {
-        const reprocessedCell = document.getElementById(uniqueId);
-        if (reprocessedCell) {
-            const computeDivs = reprocessedCell.querySelectorAll('.compute.sagecell');
-            if (computeDivs.length > 1) {
-                computeDivs[computeDivs.length - 1].remove();
-            }
-            addControlBar(reprocessedCell);
-        } else {
-            console.error('Reprocessed cell not found');
-        }
-    }, 100); // 100ms delay, adjust as needed
 }
 
 
@@ -1158,37 +1299,7 @@ function getCodeFromCell(codeCell, cellIndex) {
 }
 
 
-function collectNotebookText() {
-    const cells = document.querySelectorAll('.nb-cell');
-    const outputs = [];
-    let codeCellCount = 1;
 
-    cells.forEach((cell, index) => {
-        let cellText = '';
-
-        if (cell.classList.contains('nb-markdown-cell')) {
-            // Try to get text from the hidden textarea
-            const textarea = cell.querySelector('textarea');
-            if (textarea) {
-                // Remove zero-width spaces, if present
-                const text = textarea.value.replace(/[\u200B]/g, '');
-                cellText = `@Markdown[${index + 1}]:\n${text}`;
-            }
-        } else if (cell.classList.contains('nb-code-cell')) {
-            // Use your existing function to extract code
-            const codeText = getCodeFromCell(cell, codeCellCount - 1);
-            cellText = `@${codeText}`;
-            codeCellCount++;
-        }
-
-        if (cellText) {
-            outputs.push(cellText);
-        }
-    });
-
-    // Join each cell's content with the separator so it isn't added after the last cell.
-    return outputs.join('\n@=================\n').trim();
-}
 
 function getFormattedDate() {
     const date = new Date();
@@ -1222,27 +1333,7 @@ function downloadNotebookText() {
     document.body.removeChild(link);
 }
 
-// Example of a simple createMarkdownCell function
-function createMarkdownCell(content) {
-    const markdownCell = document.createElement('div');
-    markdownCell.className = 'nb-cell nb-markdown-cell';
-    markdownCell.innerHTML = `
-        <textarea id="mdinput" placeholder="Enter your Markdown or HTML here" 
-                  style="width: 100%; height:120px; display: none; font-family: Consolas, 'Courier New', monospace;"
-                  data-original="">
-        </textarea>
-        <div id="preview"><p><em></em></p></div>
-    `;
-    const textarea = markdownCell.querySelector('textarea');
-    textarea.value = content;
-    textarea.setAttribute('data-original', content);
 
-    // Optionally call any helper functions you normally use:
-    updateMarkdownPreview(markdownCell);
-    addControlBar(markdownCell);
-
-    return markdownCell;
-}
 
 /**
  * Main function to read and import text file data, then re-create cells in order.
@@ -1269,6 +1360,7 @@ function importNotebookFromFile(file) {
  * Parse the text content and restore cells into #notebook-container in sequence.
  * @param {string} text - The text of the notebook_export_current_date.txt file (beta version)
  */
+
 function restoreNotebookFromText(text) {
     // Find the container for appending cells
     const container = document.querySelector('.nb-worksheet');
@@ -1295,17 +1387,15 @@ function restoreNotebookFromText(text) {
         const content = lines.slice(1).join('\n');
 
         if (header.startsWith('@Markdown[')) {
-            // Rebuild a Markdown cell
+            // Rebuild a Markdown cell with CodeMirror
             const mdCell = createMarkdownCell(content);
             container.appendChild(mdCell);
         } else if (header.startsWith('@In[')) {
-            // Rebuild a Code cell; here we also remove any problematic zero-width spaces
+            // Rebuild a Code cell
             const codeCell = createCodeCell(content.replace(/[\u200B]/g, ''));
             container.appendChild(codeCell);
             addControlBar(codeCell);
         } else {
-            // If the header doesn't match known patterns,
-            // handle it as you wish or log a warning
             console.warn(`Unrecognized cell header format: "${header}"`);
         }
     });
@@ -1760,8 +1850,8 @@ function exportExcelJsonFromCell(cell) {
 function toggleMarkdownTips(cell) {
     let tipsPanel = cell.querySelector('.inline-markdown-tips');
     if (tipsPanel) {
-        // Toggle the panel's display.
-        tipsPanel.style.display = (tipsPanel.style.display === 'none') ? 'block' : 'none';
+        // Remove the tips panel if it exists
+        tipsPanel.remove();
     } else {
         // Create the tips panel if it doesn't exist.
         tipsPanel = document.createElement('div');
@@ -1803,4 +1893,622 @@ function toggleMarkdownTips(cell) {
         // Insert the tips panel just after the control bar (assumed to be the first child).
         cell.insertBefore(tipsPanel, cell.children[1] || null);
     }
+}
+
+// Code Mirror
+function convertToMarkdown(codeCell) {
+    // Extract all lines of text from the code cell
+    let codeText = '';
+
+    // Try different ways to get the code content
+    const codeMirrorInstance = codeCell.querySelector('.CodeMirror');
+    if (codeMirrorInstance && codeMirrorInstance.CodeMirror) {
+        // If there's a CodeMirror instance, get the value directly
+        codeText = codeMirrorInstance.CodeMirror.getValue();
+    } else {
+        // Otherwise, try to extract from the DOM elements
+        const codeLines = codeCell.querySelectorAll(".CodeMirror-code > div > pre > span");
+        if (codeLines && codeLines.length > 0) {
+            codeText = Array.from(codeLines)
+                .map(line => line.textContent)
+                .join('\n');
+        } else {
+            // Fallback method: try to get text from the input or a script element
+            const input = codeCell.querySelector('.sagecell_input textarea');
+            if (input) {
+                codeText = input.value;
+            } else {
+                const scriptElem = codeCell.querySelector('script[type="text/x-sage"]');
+                if (scriptElem) {
+                    codeText = scriptElem.textContent;
+                }
+            }
+        }
+    }
+
+    // Clean up zero-width spaces and other invisible characters
+    codeText = codeText
+        .replace(/[\u200B\u200C\u200D\uFEFF]/g, '') // Remove zero-width characters
+        .replace(/\u00A0/g, ' '); // Replace non-breaking spaces with regular spaces
+
+    // Create a unique ID for this editor
+    const editorId = 'md-editor-' + Date.now();
+    const previewId = 'preview-' + Date.now();
+
+    // Create the markdown cell structure
+    const markdownCell = document.createElement('div');
+    markdownCell.className = 'nb-cell nb-markdown-cell';
+    markdownCell.innerHTML = `
+        <div class="editor-container" style="position: relative;">
+            <textarea id="${editorId}" placeholder="Enter your Markdown or HTML here" 
+                      style="width: 100%; height:150px; font-family: Consolas, 'Courier New', monospace;" 
+                      data-original="">${codeText}</textarea>
+        </div>
+        <div id="${previewId}" class="markdown-preview"><p><em></em></p></div>
+    `;
+
+    // Replace the code cell with the new markdown cell
+    codeCell.parentNode.replaceChild(markdownCell, codeCell);
+
+    // Get the textarea element
+    const textarea = markdownCell.querySelector(`#${editorId}`);
+
+    // Update the data-original attribute
+    textarea.setAttribute('data-original', codeText);
+
+    // Initialize CodeMirror on the textarea
+    const editor = CodeMirror.fromTextArea(textarea, {
+        mode: 'markdown',
+        lineNumbers: true,
+        lineWrapping: true,
+        theme: 'default',
+        extraKeys: {"Ctrl-Space": "autocomplete"},
+        autoCloseBrackets: true,
+        matchBrackets: true,
+        foldGutter: true,
+        gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+        highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
+    });
+
+    // Set initial height and save it to the element for reference
+    editor.setSize(null, 150);
+    markdownCell.querySelector('.CodeMirror').setAttribute('data-original-height', '150px');
+
+    // Store the CodeMirror instance on the cell for later access
+    markdownCell.cmEditor = editor;
+
+    // Set up real-time preview updates
+    editor.on('change', () => {
+        renderMarkdownWithCM(editor, markdownCell.querySelector(`#${previewId}`));
+    });
+
+    // Trigger initial render
+    renderMarkdownWithCM(editor, markdownCell.querySelector(`#${previewId}`));
+
+    // Hide the editor initially (consistent with your existing functionality)
+    markdownCell.querySelector('.CodeMirror').style.display = 'block';
+    markdownCell.querySelector(`#${previewId}`).style.display = 'block';
+
+    // Add control bar
+    addControlBar(markdownCell);
+}
+
+// Ensure we have this helper function for rendering
+function renderMarkdownWithCM(editor, previewElement) {
+    // Get content and clean it of zero-width spaces
+    const content = editor.getValue().replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+
+    // Use texme if available, otherwise fallback to basic HTML
+    if (typeof texme !== 'undefined' && texme.render) {
+        previewElement.innerHTML = texme.render(content);
+    } else if (typeof marked !== 'undefined') {
+        previewElement.innerHTML = marked.parse(content);
+    } else {
+        previewElement.innerHTML = `<p>${content}</p>`;
+    }
+
+    // Ensure all hyperlinks in the preview open in a new tab
+    previewElement.querySelectorAll('a').forEach(link => {
+        link.setAttribute('target', '_blank');
+        link.setAttribute('rel', 'noopener noreferrer');
+    });
+
+    // Render LaTeX if available
+    if (typeof renderMathInElement !== 'undefined') {
+        renderMathInElement(previewElement, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$', right: '$', display: false}
+            ],
+            throwOnError: false
+        });
+    } else if (window.MathJax) {
+        window.MathJax.texReset();
+        window.MathJax.typesetPromise([previewElement]);
+    }
+}
+
+function toggleMarkdownMode() {
+    document.querySelectorAll('.nb-cell.nb-markdown-cell').forEach(cell => {
+        // Handle CodeMirror cells
+        if (cell.cmEditor) {
+            const cmElement = cell.querySelector('.CodeMirror');
+            const preview = cell.querySelector('.markdown-preview');
+
+            if (editMode) {
+                // Switch to edit mode
+                cmElement.style.display = 'block';
+                preview.style.display = 'block';
+                cell.cmEditor.refresh(); // Important: CM needs a refresh when shown
+            } else {
+                // Switch to preview mode
+                cmElement.style.display = 'none';
+                preview.style.display = 'block';
+
+                // Update the preview with the latest content
+                renderMarkdownWithCM(cell.cmEditor, preview);
+            }
+            return;
+        }
+
+        // Handle traditional cells
+        const input = cell.querySelector('[id^="mdinput"]');
+        const preview = cell.querySelector('[id^="preview"]');
+
+        if (input && preview) {
+            if (editMode) {
+                // Show input, hide preview
+                input.value = input.getAttribute('data-original') || '';
+                input.style.display = 'block';
+                preview.style.display = 'block';
+            } else {
+                // Store original markdown
+                input.setAttribute('data-original', input.value);
+
+                // Render content
+                if (typeof renderMarkdown === 'function') {
+                    renderMarkdown(input, preview);
+                } else if (typeof texme !== 'undefined' && texme.render) {
+                    preview.innerHTML = texme.render(input.value);
+
+                    // Process math if available
+                    if (window.MathJax) {
+                        window.MathJax.texReset();
+                        window.MathJax.typesetPromise([preview]);
+                    }
+                }
+
+                // Hide input, show preview
+                input.style.display = 'none';
+                preview.style.display = 'block';
+            }
+        }
+    });
+
+    // Toggle global edit mode
+    editMode = !editMode;
+}
+
+function createMarkdownCell(content = '') {
+    // Create a unique ID for this editor
+    const editorId = 'md-editor-' + Date.now();
+    const previewId = 'preview-' + Date.now();
+
+    // If content is empty, set a default placeholder that will render nicely
+    const initialContent = content
+    const markdownCell = document.createElement('div');
+    markdownCell.className = 'nb-cell nb-markdown-cell';
+    markdownCell.innerHTML = `
+        <div class="editor-container">
+            <textarea id="${editorId}" placeholder="Enter your Markdown or HTML here" 
+                      class="markdown-textarea"
+                      data-original="">${initialContent}</textarea>
+        </div>
+        <div id="${previewId}" class="markdown-preview"></div>
+    `;
+
+    // Initialize CodeMirror after the element is in the DOM
+    setTimeout(() => {
+        const textarea = markdownCell.querySelector(`#${editorId}`);
+
+        // Initialize CodeMirror on the textarea
+        const editor = CodeMirror.fromTextArea(textarea, {
+            mode: 'markdown',
+            lineNumbers: true,
+            lineWrapping: true,
+            theme: 'default',
+            extraKeys: {"Ctrl-Space": "autocomplete"},
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            foldGutter: true,
+            gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+            highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
+        });
+
+        // Set initial height
+        editor.setSize(null, 150);
+        markdownCell.querySelector('.CodeMirror').setAttribute('data-original-height', '150px');
+
+        // Store the CodeMirror instance on the cell for later access
+        markdownCell.cmEditor = editor;
+
+        // Set up real-time preview updates
+        editor.on('change', () => {
+            renderMarkdownWithCM(editor, markdownCell.querySelector(`#${previewId}`));
+        });
+
+        // Initial render
+        renderMarkdownWithCM(editor, markdownCell.querySelector(`#${previewId}`));
+
+        // Set display based on global edit mode
+        const cmElement = markdownCell.querySelector('.CodeMirror');
+        const preview = markdownCell.querySelector(`#${previewId}`);
+
+        if (typeof editMode !== 'undefined' && editMode) {
+            // Edit mode: show both editor and preview
+            cmElement.style.display = 'block';
+            preview.style.display = 'block';
+        } else {
+            // View mode: hide editor, show preview
+            cmElement.style.display = 'none';
+            preview.style.display = 'block';
+
+            // Add a special class to help style empty cell previews
+            if (!content) {
+                preview.classList.add('empty-markdown-preview');
+            }
+        }
+
+        // Add control bar
+        addControlBar(markdownCell);
+
+        // Add click handler to easily edit empty cells by clicking on them
+        if (!content) {
+            preview.addEventListener('click', function(e) {
+                if (preview.classList.contains('empty-markdown-preview')) {
+                    toggleSingleCellEditMode(markdownCell);
+                    e.preventDefault();
+                    // Remove the empty class once it's been clicked
+                    preview.classList.remove('empty-markdown-preview');
+                }
+            });
+        }
+    }, 0);
+
+    return markdownCell;
+}
+
+
+function updateMarkdownPreview(cell) {
+    // Check if this is a CodeMirror-based cell
+    if (cell.cmEditor) {
+        const preview = cell.querySelector('.markdown-preview');
+        if (preview) {
+            renderMarkdownWithCM(cell.cmEditor, preview);
+
+            // Make sure preview is visible
+            preview.style.display = 'block';
+        }
+        return;
+    }
+
+    // Fallback for traditional cells
+    const input = cell.querySelector('[id^="mdinput"]');
+    const preview = cell.querySelector('[id^="preview"]');
+
+    if (!input || !preview) {
+        console.error("Input or preview element not found in the cell.");
+        return;
+    }
+
+    // Store original markdown
+    input.setAttribute('data-original', input.value);
+
+    // Render the markdown
+    if (typeof renderMarkdown === 'function') {
+        renderMarkdown(input, preview);
+    } else if (typeof texme !== 'undefined' && texme.render) {
+        preview.innerHTML = texme.render(input.value);
+
+        // Process math if available
+        if (window.MathJax) {
+            window.MathJax.texReset();
+            window.MathJax.typesetPromise([preview]);
+        }
+    }
+
+    // Show both input and preview
+    input.style.display = 'block';
+    preview.style.display = 'block';
+}
+
+function toggleMarkdownMode() {
+    document.querySelectorAll('.nb-cell.nb-markdown-cell').forEach(cell => {
+        // Handle CodeMirror cells
+        if (cell.cmEditor) {
+            const cmElement = cell.querySelector('.CodeMirror');
+            const preview = cell.querySelector('.markdown-preview');
+
+            if (editMode) {
+                // Switch to edit mode
+                cmElement.style.display = 'block';
+                preview.style.display = 'block';
+                cell.cmEditor.refresh(); // Important: CM needs a refresh when shown
+            } else {
+                // Switch to preview mode
+                cmElement.style.display = 'none';
+                preview.style.display = 'block';
+
+                // Update the preview with the latest content
+                renderMarkdownWithCM(cell.cmEditor, preview);
+            }
+            return;
+        }
+
+        // Handle traditional cells
+        const input = cell.querySelector('[id^="mdinput"]');
+        const preview = cell.querySelector('[id^="preview"]');
+
+        if (input && preview) {
+            if (editMode) {
+                // Show input, hide preview
+                input.value = input.getAttribute('data-original') || '';
+                input.style.display = 'block';
+                preview.style.display = 'block';
+            } else {
+                // Store original markdown
+                input.setAttribute('data-original', input.value);
+
+                // Render content
+                if (typeof renderMarkdown === 'function') {
+                    renderMarkdown(input, preview);
+                } else if (typeof texme !== 'undefined' && texme.render) {
+                    preview.innerHTML = texme.render(input.value);
+
+                    // Process math if available
+                    if (window.MathJax) {
+                        window.MathJax.texReset();
+                        window.MathJax.typesetPromise([preview]);
+                    }
+                }
+
+                // Hide input, show preview
+                input.style.display = 'none';
+                preview.style.display = 'block';
+            }
+        }
+    });
+
+    // Toggle global edit mode
+    editMode = !editMode;
+}
+
+function initializeMarkdownCells() {
+    // First handle traditional cells
+    const inputs = document.querySelectorAll('[id^="mdinput"]');
+    const previews = document.querySelectorAll('[id^="preview"]');
+
+    inputs.forEach((input, index) => {
+        const preview = previews[index];
+        if (preview) {
+            // Get original content
+            const content = input.getAttribute('data-original') || input.value;
+
+            // Store original markdown
+            input.setAttribute('data-original', content);
+            input.value = content;
+
+            // Render content
+            if (typeof renderMarkdown === 'function') {
+                renderMarkdown(input, preview);
+            } else if (typeof texme !== 'undefined' && texme.render) {
+                preview.innerHTML = texme.render(content);
+
+                // Process math if available
+                if (window.MathJax) {
+                    window.MathJax.texReset();
+                    window.MathJax.typesetPromise([preview]);
+                }
+            }
+
+            // Hide input, show preview for initial state
+            input.style.display = 'none';
+            preview.style.display = 'block';
+        }
+    });
+
+    // Now look for any CodeMirror-based cells and make sure they're properly initialized
+    document.querySelectorAll('.nb-cell.nb-markdown-cell').forEach(cell => {
+        // Skip cells that don't have CodeMirror
+        if (!cell.querySelector('.CodeMirror')) return;
+
+        // If we don't already have a cmEditor property, initialize it
+        if (!cell.cmEditor) {
+            const textarea = cell.querySelector('textarea');
+            if (!textarea) return;
+
+            // Initialize CodeMirror
+            const editor = CodeMirror.fromTextArea(textarea, {
+                mode: 'markdown',
+                lineNumbers: true,
+                lineWrapping: true,
+                theme: 'default',
+                extraKeys: {"Ctrl-Space": "autocomplete"},
+                autoCloseBrackets: true,
+                matchBrackets: true,
+                foldGutter: true,
+                gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+                highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
+            });
+
+            // Set initial height
+            editor.setSize(null, 150);
+            cell.querySelector('.CodeMirror').setAttribute('data-original-height', '150px');
+
+            // Store the CodeMirror instance
+            cell.cmEditor = editor;
+
+            // Set up change handler
+            const preview = cell.querySelector('.markdown-preview') || cell.querySelector('[id^="preview"]');
+            if (preview) {
+                editor.on('change', () => {
+                    renderMarkdownWithCM(editor, preview);
+                });
+
+                // Initial render
+                renderMarkdownWithCM(editor, preview);
+            }
+        }
+
+        // Hide the editor, show the preview
+        const cmElement = cell.querySelector('.CodeMirror');
+        const preview = cell.querySelector('.markdown-preview') || cell.querySelector('[id^="preview"]');
+
+        if (cmElement && preview) {
+            cmElement.style.display = 'none';
+            preview.style.display = 'block';
+        }
+    });
+}
+
+function convertToCode(markdownCell) {
+    // Get content from the markdown cell
+    let markdownText = '';
+
+    if (markdownCell.cmEditor) {
+        markdownText = markdownCell.cmEditor.getValue();
+    } else {
+        const textarea = markdownCell.querySelector('textarea');
+        if (textarea) {
+            markdownText = textarea.value;
+        } else {
+            console.error('Could not find content in markdown cell');
+            return;
+        }
+    }
+
+    // Clean content
+    markdownText = markdownText.replace(/[\u200B]/g, '');
+
+    // Use your existing createCodeCell function
+    const codeCell = createCodeCell(markdownText);
+
+    // Replace the markdown cell
+    markdownCell.parentNode.replaceChild(codeCell, markdownCell);
+
+    // Process notebook
+    reprocessNotebook();
+
+    // Add control bar after a delay
+    setTimeout(() => {
+        addControlBar(codeCell);
+    }, 300);
+}
+
+function collectNotebookText() {
+    const cells = document.querySelectorAll('.nb-cell');
+    const outputs = [];
+    let codeCellCount = 1;
+
+    cells.forEach((cell, index) => {
+        let cellText = '';
+
+        if (cell.classList.contains('nb-markdown-cell')) {
+            let markdownContent = '';
+
+            // Check if this is a CodeMirror cell
+            if (cell.cmEditor) {
+                markdownContent = cell.cmEditor.getValue().replace(/[\u200B]/g, '');
+            } else {
+                // Try to get text from the hidden textarea
+                const textarea = cell.querySelector('textarea');
+                if (textarea) {
+                    markdownContent = textarea.value.replace(/[\u200B]/g, '');
+                }
+            }
+
+            cellText = `@Markdown[${index + 1}]:\n${markdownContent}`;
+        } else if (cell.classList.contains('nb-code-cell')) {
+            // Use your existing function to extract code
+            const codeText = getCodeFromCell(cell, codeCellCount - 1);
+            cellText = `@${codeText}`;
+            codeCellCount++;
+        }
+
+        if (cellText) {
+            outputs.push(cellText);
+        }
+    });
+
+    // Join each cell's content with the separator
+    return outputs.join('\n@=================\n').trim();
+}
+
+function toggleSingleCellEditMode(cell) {
+    const button = cell.querySelector('.control-bar button:first-child');
+    const isCurrentlyInViewMode = button.textContent === 'Edit';
+
+    if (cell.cmEditor) {
+        // This is a CodeMirror-based markdown cell
+        const cmElement = cell.querySelector('.CodeMirror');
+        const preview = cell.querySelector('.markdown-preview');
+
+        if (isCurrentlyInViewMode) {
+            // Switch to edit mode
+            cmElement.style.display = 'block';
+            preview.style.display = 'block';
+            cell.cmEditor.refresh(); // Important for CM to render correctly
+            button.textContent = 'View';
+        } else {
+            // Switch to view mode
+            cmElement.style.display = 'none';
+            preview.style.display = 'block';
+
+            // Update the preview with the latest content
+            renderMarkdownWithCM(cell.cmEditor, preview);
+            button.textContent = 'Edit';
+        }
+    } else {
+        // Traditional textarea-based cell
+        const input = cell.querySelector('[id^="mdinput"]');
+        const preview = cell.querySelector('[id^="preview"]');
+
+        if (isCurrentlyInViewMode) {
+            // Switch to edit mode
+            input.style.display = 'block';
+            preview.style.display = 'block';
+            button.textContent = 'View';
+        } else {
+            // Switch to view mode
+            input.style.display = 'none';
+            preview.style.display = 'block';
+
+            // Update preview with current content
+            if (typeof renderMarkdown === 'function') {
+                renderMarkdown(input, preview);
+            } else if (typeof texme !== 'undefined' && texme.render) {
+                preview.innerHTML = texme.render(input.value);
+
+                // Process math if available
+                if (window.MathJax) {
+                    window.MathJax.texReset();
+                    window.MathJax.typesetPromise([preview]);
+                }
+            }
+
+            button.textContent = 'Edit';
+        }
+    }
+}
+
+function addMarkdownCell(referenceCell, position, initialContent = '') {
+    const markdownCell = createMarkdownCell(initialContent);
+
+    // Insert the new cell at the specified position
+    if (position === 'above') {
+        referenceCell.parentNode.insertBefore(markdownCell, referenceCell);
+    } else {
+        referenceCell.parentNode.insertBefore(markdownCell, referenceCell.nextSibling);
+    }
+    return markdownCell;
 }
