@@ -21,29 +21,11 @@ function scrollFunction() {
 }
 
 function saveHtml() {
-    // Before removing control bars, make sure to save all CodeMirror content
-    document.querySelectorAll('.nb-markdown-cell').forEach(cell => {
-        if (cell.cmEditor) {
-            const textarea = cell.querySelector('textarea');
-            if (textarea) {
-                const content = cell.cmEditor.getValue();
-                textarea.value = content;
-                textarea.setAttribute('data-original', content);
-            }
-        }
-    });
-	removeAllControlBars();
-	// Update the content of all input and preview elements
-    document.querySelectorAll('[id^="mdinput"]').forEach((input, index) => {
-        const preview = document.querySelectorAll('[id^="preview"]')[index];
-        if (input.style.display !== 'none') {
-            // If input is visible, update the data-original attribute
-            input.setAttribute('data-original', input.value);
-        } else {
-            // If preview is visible, ensure it reflects the latest rendered content
-            preview.innerHTML = texme.render(input.getAttribute('data-original') || '');
-        }
-    });
+
+    // Simplify all markdown cells to basic HTML form before saving
+    simplifyMarkdownCellsForSaving();
+
+    removeAllControlBars();
 
     saveAddSageCells(".nb-code-cell", ".sagecell_input,.sagecell_output");
     $("script").html().replace(/\u200B/g, "");
@@ -76,6 +58,7 @@ function saveHtml() {
 
         '<script>let RUN_DELAY = '+ RUN_DELAY +';</script>\n' +
         '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner4.js"></script>\n' +
+        // '<script src="nbrunner4.js"></script>\n' +
         '<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>\n' +
         '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css">\n' +
         '<script>\n' +
@@ -335,19 +318,38 @@ let editMode = false;
 function toggleEditMode() {
     // First, determine what the new state should be (opposite of current)
     const newEditModeState = !editMode;
+    console.log(`Toggling edit mode to: ${newEditModeState ? 'Edit' : 'View'}`);
 
     // Get all markdown cells
     const markdownCells = document.querySelectorAll('.nb-cell.nb-markdown-cell');
 
     markdownCells.forEach(cell => {
-        // Get the Edit/View toggle button for this cell
+        // Check if this cell has multiple control bars
+        const controlBars = cell.querySelectorAll('.control-bar');
+        if (controlBars.length > 1) {
+            // Keep only the first control bar and remove others
+            console.log(`Found ${controlBars.length} control bars in cell, removing duplicates`);
+            for (let i = 1; i < controlBars.length; i++) {
+                controlBars[i].remove();
+            }
+        }
+
+        // Get the Edit/View toggle button for this cell (from the first/only control bar)
         const toggleButton = cell.querySelector('.control-bar button:first-child');
-        if (!toggleButton) return; // Skip if no button found
+        if (!toggleButton) {
+            console.log("No toggle button found for cell");
+            return; // Skip if no button found
+        }
 
         // Handle CodeMirror cells
         if (cell.cmEditor) {
             const cmElement = cell.querySelector('.CodeMirror');
             const preview = cell.querySelector('.markdown-preview');
+
+            if (!cmElement || !preview) {
+                console.log("Missing CodeMirror or preview element");
+                return; // Skip if elements not found
+            }
 
             if (newEditModeState) {
                 // Switch to edit mode
@@ -369,7 +371,10 @@ function toggleEditMode() {
             const input = cell.querySelector('[id^="mdinput"]');
             const preview = cell.querySelector('[id^="preview"]');
 
-            if (!input || !preview) return; // Skip if elements not found
+            if (!input || !preview) {
+                console.log("Missing input or preview element");
+                return; // Skip if elements not found
+            }
 
             if (newEditModeState) {
                 // Switch to edit mode
@@ -491,7 +496,7 @@ function addControlPanel() {
 	document.body.insertBefore(controlPanel, main);
     const linkElement = document.querySelector('link[href="https://dahn-research.eu/nbplayer/css/nbplayer.css"]');
     if (linkElement) {
-        linkElement.href = "https://cdn.jsdelivr.net/gh/SageMathAINotebooks@main/css/nbplayer.css";
+        linkElement.href = "https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css";
     }
     // Automatically click the Edit Cells button twice
     setTimeout(() => {
@@ -1989,6 +1994,7 @@ function convertToMarkdown(codeCell) {
     markdownCell.querySelector('.CodeMirror').style.display = 'block';
     markdownCell.querySelector(`#${previewId}`).style.display = 'block';
 
+    removeControlBar(markdownCell);
     // Add control bar
     addControlBar(markdownCell);
 }
@@ -2284,91 +2290,97 @@ function toggleMarkdownMode() {
 }
 
 function initializeMarkdownCells() {
-    // First handle traditional cells
-    const inputs = document.querySelectorAll('[id^="mdinput"]');
-    const previews = document.querySelectorAll('[id^="preview"]');
+    console.log("Initializing markdown cells...");
 
-    inputs.forEach((input, index) => {
-        const preview = previews[index];
-        if (preview) {
-            // Get original content
-            const content = input.getAttribute('data-original') || input.value;
+    // Get all markdown cells
+    const markdownCells = document.querySelectorAll('.nb-cell.nb-markdown-cell');
+    const cellsToTransform = [];
 
-            // Store original markdown
-            input.setAttribute('data-original', content);
-            input.value = content;
+    // First collect all cells and their content to avoid DOM modification issues during iteration
+    markdownCells.forEach(cell => {
+        let content = '';
 
-            // Render content
-            if (typeof renderMarkdown === 'function') {
-                renderMarkdown(input, preview);
-            } else if (typeof texme !== 'undefined' && texme.render) {
-                preview.innerHTML = texme.render(content);
+        // Look for the content in this order of priority:
+        // 1. textarea's data-original attribute
+        const textarea = cell.querySelector('textarea');
+        if (textarea && textarea.getAttribute('data-original')) {
+            content = textarea.getAttribute('data-original');
+            console.log("Found content in textarea data-original");
+        }
+        // 2. preview's data-original-markdown attribute
+        else {
+            const preview = cell.querySelector('.markdown-preview') || cell.querySelector('[id^="preview"]');
+            if (preview && preview.getAttribute('data-original-markdown')) {
+                content = preview.getAttribute('data-original-markdown');
+                console.log("Found content in preview data-original-markdown");
+            }
+        }
 
-                // Process math if available
-                if (window.MathJax) {
-                    window.MathJax.texReset();
-                    window.MathJax.typesetPromise([preview]);
+        // If we still don't have content, try other sources as fallbacks
+        if (!content) {
+            // Try textarea value
+            if (textarea && textarea.value) {
+                content = textarea.value;
+                console.log("Using textarea value as fallback");
+            }
+            // Try preview innerHTML as last resort
+            else if (preview) {
+                content = preview.innerHTML;
+                console.log("Using preview HTML as fallback (last resort)");
+            }
+        }
+
+        // Store cell and its content for transformation
+        cellsToTransform.push({
+            cell: cell,
+            content: content
+        });
+    });
+
+    // Now transform each cell
+    cellsToTransform.forEach(item => {
+        console.log("Transforming markdown cell with content:", item.content.substring(0, 30) + "...");
+
+        // Create a new markdown cell with the extracted content
+        const newCell = createMarkdownCell(item.content);
+
+        // Replace the old cell with the new one
+        if (item.cell.parentNode) {
+            item.cell.parentNode.replaceChild(newCell, item.cell);
+        }
+    });
+
+    // After a delay, ensure all CodeMirror instances are properly sized and buttons are labeled correctly
+    setTimeout(() => {
+        document.querySelectorAll('.nb-markdown-cell').forEach(cell => {
+            // Set initial visibility based on global edit mode
+            const cmElement = cell.querySelector('.CodeMirror');
+            const preview = cell.querySelector('.markdown-preview');
+
+            if (cmElement && preview) {
+                if (typeof editMode !== 'undefined' && editMode) {
+                    // Edit mode: show editor and preview
+                    cmElement.style.display = 'block';
+                    preview.style.display = 'block';
+                } else {
+                    // View mode: hide editor, show preview
+                    cmElement.style.display = 'none';
+                    preview.style.display = 'block';
+                }
+
+                // If there's a CodeMirror instance, make sure it's refreshed
+                if (cell.cmEditor) {
+                    cell.cmEditor.refresh();
                 }
             }
 
-            // Hide input, show preview for initial state
-            input.style.display = 'none';
-            preview.style.display = 'block';
-        }
-    });
-
-    // Now look for any CodeMirror-based cells and make sure they're properly initialized
-    document.querySelectorAll('.nb-cell.nb-markdown-cell').forEach(cell => {
-        // Skip cells that don't have CodeMirror
-        if (!cell.querySelector('.CodeMirror')) return;
-
-        // If we don't already have a cmEditor property, initialize it
-        if (!cell.cmEditor) {
-            const textarea = cell.querySelector('textarea');
-            if (!textarea) return;
-
-            // Initialize CodeMirror
-            const editor = CodeMirror.fromTextArea(textarea, {
-                mode: 'markdown',
-                lineNumbers: true,
-                lineWrapping: true,
-                theme: 'default',
-                extraKeys: {"Ctrl-Space": "autocomplete"},
-                autoCloseBrackets: true,
-                matchBrackets: true,
-                foldGutter: true,
-                gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
-                highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
-            });
-
-            // Set initial height
-            editor.setSize(null, 150);
-            cell.querySelector('.CodeMirror').setAttribute('data-original-height', '150px');
-
-            // Store the CodeMirror instance
-            cell.cmEditor = editor;
-
-            // Set up change handler
-            const preview = cell.querySelector('.markdown-preview') || cell.querySelector('[id^="preview"]');
-            if (preview) {
-                editor.on('change', () => {
-                    renderMarkdownWithCM(editor, preview);
-                });
-
-                // Initial render
-                renderMarkdownWithCM(editor, preview);
+            // Update edit/view button text
+            const editButton = cell.querySelector('.control-bar button:first-child');
+            if (editButton) {
+                editButton.textContent = (typeof editMode !== 'undefined' && editMode) ? 'View' : 'Edit';
             }
-        }
-
-        // Hide the editor, show the preview
-        const cmElement = cell.querySelector('.CodeMirror');
-        const preview = cell.querySelector('.markdown-preview') || cell.querySelector('[id^="preview"]');
-
-        if (cmElement && preview) {
-            cmElement.style.display = 'none';
-            preview.style.display = 'block';
-        }
-    });
+        });
+    }, 300);
 }
 
 function convertToCode(markdownCell) {
@@ -2378,13 +2390,19 @@ function convertToCode(markdownCell) {
     if (markdownCell.cmEditor) {
         markdownText = markdownCell.cmEditor.getValue();
     } else {
-        const textarea = markdownCell.querySelector('textarea');
-        if (textarea) {
-            markdownText = textarea.value;
+        const textareas = markdownCell.querySelectorAll('textarea');
+        if (textareas.length > 0) {
+            // Use only the first textarea
+            markdownText = textareas[0].value;
         } else {
             console.error('Could not find content in markdown cell');
             return;
         }
+    }
+
+    // Check if the content contains textarea tags and sanitize if needed
+    if (markdownText.includes('<textarea')) {
+        markdownText = markdownText.replace(/<textarea/g, '&lt;textarea');
     }
 
     // Clean content
@@ -2399,9 +2417,15 @@ function convertToCode(markdownCell) {
     // Process notebook
     reprocessNotebook();
 
-    // Add control bar after a delay
+    // Add control bar after a delay and clean up any duplicate compute divs
     setTimeout(() => {
         addControlBar(codeCell);
+
+        // Remove duplicate compute elements if any exist
+        const computeDivs = codeCell.querySelectorAll('.compute');
+        if (computeDivs.length > 1) {
+            Array.from(computeDivs).slice(1).forEach(div => div.remove());
+        }
     }, 300);
 }
 
@@ -2512,3 +2536,74 @@ function addMarkdownCell(referenceCell, position, initialContent = '') {
     }
     return markdownCell;
 }
+
+function simplifyMarkdownCellsForSaving() {
+    console.log("Simplifying markdown cells for saving...");
+
+    // First, remove all control bars
+    document.querySelectorAll('.control-bar, .control-ai-bar, .inline-markdown-tips').forEach(bar => {
+        bar.remove();
+    });
+
+    // Handle all markdown cells
+    document.querySelectorAll('.nb-markdown-cell').forEach(cell => {
+        // 1. Get content from the cell (prioritizing CodeMirror)
+        let content = '';
+
+        // Always try to get content from CodeMirror first as it's most up-to-date
+        if (cell.cmEditor) {
+            content = cell.cmEditor.getValue();
+            console.log("Got content from CodeMirror:", content.substring(0, 30) + "...");
+
+            // Properly clean up the CodeMirror instance
+            cell.cmEditor.toTextArea();
+            cell.cmEditor = null;
+        }
+
+        // 2. Update textarea with the content
+        const textarea = cell.querySelector('textarea');
+        if (textarea) {
+            if (content) {
+                // Update textarea with CodeMirror content
+                textarea.value = content;
+            } else {
+                // If no CodeMirror content was available, get it from the textarea
+                content = textarea.value || textarea.getAttribute('data-original') || '';
+                console.log("Got content from textarea:", content.substring(0, 30) + "...");
+            }
+
+            // Always update the data-original attribute
+            textarea.setAttribute('data-original', content);
+
+            // Hide the textarea but keep it in the DOM
+            textarea.style.display = 'none';
+        }
+
+        // 3. Clean up any remaining CodeMirror elements
+        cell.querySelectorAll('.CodeMirror').forEach(cm => {
+            cm.remove();
+            console.log("Removed CodeMirror element");
+        });
+
+        // 4. Update the preview with the latest content
+        const preview = cell.querySelector('.markdown-preview');
+        if (preview) {
+            preview.style.display = 'block';
+
+            // Store the original markdown in a data attribute
+            preview.setAttribute('data-original-markdown', content);
+
+            // Render the markdown if texme is available
+            if (typeof texme !== 'undefined' && texme.render) {
+                preview.innerHTML = texme.render(content);
+                console.log("Updated preview with rendered markdown");
+            } else {
+                // Fallback if texme isn't available
+                preview.textContent = content;
+            }
+        }
+    });
+
+    console.log("Markdown cells simplified for saving");
+}
+
