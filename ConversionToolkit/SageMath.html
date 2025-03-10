@@ -1600,7 +1600,7 @@ mjx-stretchy-v mjx-c, mjx-stretchy-h mjx-c {
   font-family: MJXTEX-VB;
   src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Vector-Bold.woff") format("woff");
 }
-</style><style type="text/css">.output_1ef04a2ae12e493b840ac3cce8bb6846 .sagecell_messages, .output_1ef04a2ae12e493b840ac3cce8bb6846 .sagecell_permalink {display: none;}</style></head>
+</style><style type="text/css">.output_5919868bf0bb4814af7eda56a0f005f0 .sagecell_messages, .output_5919868bf0bb4814af7eda56a0f005f0 .sagecell_permalink {display: none;}</style></head>
 <body>
 <script src="https://cdn.jsdelivr.net/npm/texme@1.2.2"></script>
 <div id="main">
@@ -1608,7 +1608,7 @@ mjx-stretchy-v mjx-c, mjx-stretchy-h mjx-c {
             
             
             <div id="notebook-holder"><div class="nb-notebook"><div class="nb-worksheet"><div class="nb-cell nb-code-cell"><div class="nb-input" style="display: none;"><pre class=" language-sage"><code class=" language-sage" data-language="sage"></code></pre></div>
-  <div class="compute sagecell output_1ef04a2ae12e493b840ac3cce8bb6846" style="display: none;">
+  <div class="compute sagecell output_5919868bf0bb4814af7eda56a0f005f0" style="display: none;">
 
 <div class="sagecell-templates hide"></div>
 <div class="sagecell_output_elements" style="display: none;">
@@ -1627,29 +1627,38 @@ mjx-stretchy-v mjx-c, mjx-stretchy-h mjx-c {
 
             
         </div>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW" crossorigin="anonymous"></script>
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-  <script src="https://sagecell.sagemath.org/embedded_sagecell.js"></script>
-  <script src="https://dahn-research.eu/nbplayer/vendor/js/FileSaver.min.js"></script>
-  <script src="https://dahn-research.eu/nbplayer/nbplayerConfig.js"></script>
-  <script>let RUN_DELAY = 1000;</script>
-  <script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner4.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css">
-  <script>
-    playerConfig={"panes":"Exec","lang":"sage","linked":true,"eval":false,"hide":["fullScreen"],"execute":true,"showRead":false,"collapsable":false,"playerPath":"https://dahn-research.eu/nbplayer","name":"SageMath"};
-    playerMode={"showSage":true,"showNotebookInput":true,"showSageInput":true};
-    makeMenu();
-    localize();
-    loadStatus();
-    makeSageCells(playerConfig);
-    launchPlayer();
-    addControlPanel();
-    setupRunAllCells();
-    window.onload = initializeMarkdownCells;
-    let API_KEY="";
-    let CURRENT_MODEL="";
-    let CURRENT_LANGUAGE="";
-  </script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW" crossorigin="anonymous"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://sagecell.sagemath.org/embedded_sagecell.js"></script>
+<script src="https://dahn-research.eu/nbplayer/vendor/js/FileSaver.min.js"></script>
+<script src="https://dahn-research.eu/nbplayer/nbplayerConfig.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/markdown/markdown.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/markdown-fold.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.css">
+<script>let RUN_DELAY = 1000;</script>
+<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner4.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css">
+<script>
+  playerConfig={"panes":"Exec","lang":"sage","linked":true,"eval":false,"hide":["fullScreen"],"execute":true,"showRead":false,"collapsable":false,"playerPath":"https://dahn-research.eu/nbplayer","name":"SageMath"};
+  playerMode={"showSage":true,"showNotebookInput":true,"showSageInput":true};
+  makeMenu();
+  localize();
+  loadStatus();
+  makeSageCells(playerConfig);
+  launchPlayer();
+  addControlPanel();
+  setupRunAllCells();
+  window.onload = initializeMarkdownCells;
+  let API_KEY="";
+  let CURRENT_MODEL="";
+  let CURRENT_LANGUAGE="";
+</script>
 </body>
 </html>

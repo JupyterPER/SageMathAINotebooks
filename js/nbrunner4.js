@@ -4,7 +4,7 @@ function getBrowserLanguage() {
 
 function makeMenu() {
     var e = getBrowserLanguage();
-    $("head").first().append('<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/SageMathAINotebooks@main/css/nbplayer.css"'), $("body").first().append('<script src="custom.js"><\/script>');
+    $("head").first().append('<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css"'), $("body").first().append('<script src="custom.js"><\/script>');
     var t = "de" == e ? "Code ausblenden/einblenden" : "Show / Hide Code",
         n = "de" == e ? "Code-Zellen in der gegebenen Reihenfolge ausfĂĽhren!" : "Execute Cells in the Sequence Given!",
         a = "de" == e ? "Speichern" : "Save",
@@ -77,7 +77,7 @@ function saveHtml() {
         '<script>let RUN_DELAY = '+ RUN_DELAY +';</script>\n' +
         '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner4.js"></script>\n' +
         '<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>\n' +
-        '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/SageMathAINotebooks@main/css/nbplayer.css">\n' +
+        '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css">\n' +
         '<script>\n' +
         '  playerConfig=' + JSON.stringify(playerConfig) + ';\n' +
         '  playerMode=' + JSON.stringify(playerMode) + ';\n' +
