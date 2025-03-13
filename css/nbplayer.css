@@ -651,3 +651,194 @@ box-sizing: border-box;
     background: #fdecea;
     border-left: 4px solid #e74c3c;
 }
+
+/* Enhanced DataFrame Styling with borders and tighter spacing */
+table.dataframe {
+    border-collapse: collapse;
+    width: 100%;
+    max-width: 800px;
+    margin: 15px 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    font-size: 12px; /* Smaller font size */
+    border: 1px solid #ddd; /* Border around the entire table */
+}
+
+/* Header styling */
+table.dataframe thead {
+    background-color: #45a049;
+    color: white;
+}
+
+table.dataframe thead th {
+    padding: 6px 8px; /* Reduced padding */
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    font-size: 11px; /* Even smaller font for headers */
+    border: 1px solid #45a049; /* Border for header cells */
+    text-align: center;
+}
+
+/* Row index column */
+table.dataframe tbody tr th {
+    background-color: #f8f9fa;
+    color: #495057;
+    font-weight: 600;
+    text-align: center;
+    padding: 4px 6px; /* Reduced padding */
+    border: 1px solid #ddd; /* Border for index cells */
+}
+
+/* Data cells */
+table.dataframe td {
+    padding: 4px 6px; /* Reduced padding */
+    border: 1px solid #ddd; /* Border for all data cells */
+    line-height: 1.3; /* Tighter line height */
+    text-align: center;
+}
+
+/* Alternating row colors for better readability */
+table.dataframe tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+table.dataframe tbody tr:nth-child(odd) {
+    background-color: #ffffff;
+}
+
+/* Hover effect */
+table.dataframe tbody tr:hover {
+    background-color: #7ff185;
+}
+
+/* Responsive table */
+@media screen and (max-width: 600px) {
+    table.dataframe {
+        display: block;
+        overflow-x: auto;
+        font-size: 11px; /* Even smaller on mobile */
+    }
+
+    table.dataframe td,
+    table.dataframe th {
+        padding: 3px 5px; /* Further reduced padding on mobile */
+    }
+}
+
+/* Excel modal styling that matches the existing styles */
+#excelImportExportModal,
+#excelEditorModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+/* Modal content styling to match your existing modal-content */
+#excelImportExportModal > div,
+#excelEditorModal > div {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    min-width: 300px;
+    max-width: 90%;
+    text-align: center;
+    box-shadow: 0px 0px 12px 1px rgba(87, 87, 87, 0.2);
+}
+
+/* Button styling to match your .btn-primary class */
+#excelImportExportModal button,
+#excelEditorModal button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 5px 5px;
+    margin: 0 2px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.3s ease;
+}
+
+#excelImportExportModal button:hover,
+#excelEditorModal button:hover {
+    background-color: #286090;
+}
+
+#excelImportExportModal button:focus,
+#excelEditorModal button:focus {
+    background-color: #286090;
+}
+
+/* Styling for the table in Excel editor modal */
+#excelEditorModal table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+    font-family: Arial, sans-serif;
+}
+
+#excelEditorModal table tr:first-child {
+    background-color: #4CAF50;
+    color: white;
+}
+
+#excelEditorModal table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+#excelEditorModal table tr:nth-child(odd):not(:first-child) {
+    background-color: #ffffff;
+}
+
+#excelEditorModal table td {
+    border: 1px solid #ddd;
+    padding: 0; /* Remove padding to make room for inputs */
+}
+
+#excelEditorModal table input {
+    width: 100%;
+    box-sizing: border-box;
+    border: none;
+    outline: none;
+    padding: 8px;
+    font-family: inherit;
+    background: transparent;
+}
+
+#excelEditorModal table tr:first-child input {
+    color: white;
+    font-weight: bold;
+}
+
+/* Table container with max height and scrolling */
+#excelEditorModal div[style*="max-height"] {
+    max-height: 400px;
+    overflow: auto;
+    margin-bottom: 10px;
+}
+
+/* Add some margin between button groups */
+#excelEditorModal > div > div {
+    margin: 10px 0;
+}
+
+/* Modal titles and instructions */
+#excelImportExportModal h3,
+#excelEditorModal h3 {
+    color: #333;
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+#excelImportExportModal p,
+#excelEditorModal p {
+    color: #666;
+    margin-bottom: 15px;
+}
