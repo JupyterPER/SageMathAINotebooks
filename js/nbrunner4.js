@@ -29,16 +29,24 @@ function saveHtml() {
 
     removeSageCellNumbering();
 
-
     saveAddSageCells(".nb-code-cell", ".sagecell_input,.sagecell_output");
-    $("script").html().replace(/\u200B/g, "");
+    
+    // Better handling of zero-width characters in scripts
+    document.querySelectorAll('script').forEach(script => {
+        if (script.innerHTML) {
+            script.innerHTML = script.innerHTML.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+        }
+    });
 
     const apikey = typeof API_KEY !== 'undefined' ? JSON.stringify(API_KEY) : JSON.stringify('');
     const currentmodel = typeof CURRENT_MODEL !== 'undefined' ? JSON.stringify(CURRENT_MODEL) : JSON.stringify('');
     const currentlanguage = typeof CURRENT_LANGUAGE !== 'undefined' ? JSON.stringify(CURRENT_LANGUAGE) : JSON.stringify('');
     const delayValue = document.getElementById('delay') ? parseInt(document.getElementById('delay').value) || RUN_DELAY : RUN_DELAY;
-    var e = new Blob([
-        "<!DOCTYPE html>\n<html>\n<head>" +
+    
+    // Create HTML content with explicit UTF-8 meta tag
+    const htmlContent = "<!DOCTYPE html>\n<html>\n<head>" +
+        '<meta charset="UTF-8">\n' +  // Add explicit UTF-8 charset meta tag
+        '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">\n' +  // Add Content-Type meta tag 
         $("head").html() +
         '</head>\n<body>\n' +
         '<script src="https://cdn.jsdelivr.net/npm/texme@1.2.2"></script>\n' +
@@ -81,11 +89,16 @@ function saveHtml() {
         '  let CURRENT_MODEL=' + currentmodel + ';\n' +
         '  let CURRENT_LANGUAGE=' + currentlanguage + ';\n' +
         '</script>\n' +
-        '</body>\n</html>'
-    ], {
-        type: "text/plain;charset=utf-8"
+        '</body>\n</html>';
+    
+    // Create a Blob with explicitly specified UTF-8 encoding
+    var e = new Blob([htmlContent], {
+        type: "text/html;charset=utf-8"
     });
+    
+    // Use the FileSaver library to save with proper encoding
     saveAs(e, playerConfig.name + ".html");
+    
     let t = "Do NOT use this page anymore - open your saved copy or reload this page.";
     if (getBrowserLanguage() == "de") {
         t = "Bitte die Seite neu laden oder die gespeicherte Kopie öffnen.";
@@ -2626,6 +2639,8 @@ function simplifyMarkdownCellsForSaving() {
         // Always try to get content from CodeMirror first as it's most up-to-date
         if (cell.cmEditor) {
             content = cell.cmEditor.getValue();
+            // Clean up only zero-width spaces and BOM while preserving other Unicode
+            content = content.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
             console.log("Got content from CodeMirror:", content.substring(0, 30) + "...");
 
             // Properly clean up the CodeMirror instance
@@ -2642,6 +2657,8 @@ function simplifyMarkdownCellsForSaving() {
             } else {
                 // If no CodeMirror content was available, get it from the textarea
                 content = textarea.value || textarea.getAttribute('data-original') || '';
+                // Clean up only problematic characters
+                content = content.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
                 console.log("Got content from textarea:", content.substring(0, 30) + "...");
             }
 
@@ -2668,8 +2685,13 @@ function simplifyMarkdownCellsForSaving() {
 
             // Render the markdown if texme is available
             if (typeof texme !== 'undefined' && texme.render) {
-                preview.innerHTML = texme.render(content);
-                console.log("Updated preview with rendered markdown");
+                try {
+                    preview.innerHTML = texme.render(content);
+                    console.log("Updated preview with rendered markdown");
+                } catch (e) {
+                    console.error("Error rendering markdown:", e);
+                    preview.textContent = content;
+                }
             } else {
                 // Fallback if texme isn't available
                 preview.textContent = content;
@@ -2679,7 +2701,6 @@ function simplifyMarkdownCellsForSaving() {
 
     console.log("Markdown cells simplified for saving");
 }
-
 
 function copyOutputToMarkdown(cell) {
     // Check if this is an AI cell
