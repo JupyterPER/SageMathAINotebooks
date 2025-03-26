@@ -4,6 +4,7 @@ import os
 import json
 import re
 import glob
+import subprocess
 
 def parse_txt_text(lines):
     """
@@ -206,6 +207,31 @@ def multiconvert_txt_to_ipynb(folder_path='', output_folder=''):
         
     return converted_count
 
+def open_folder(path):
+    """Opens given folder in system Explorer"""
+    if not path:
+        return
+        
+    folder_path = path
+    if os.path.isfile(path):
+        folder_path = os.path.dirname(path)
+    
+    if os.path.exists(folder_path):
+        # Otvorenie priečinka na základe operačného systému
+        if os.name == 'nt':  # Windows
+            os.startfile(folder_path)
+        elif os.name == 'posix':  # macOS a Linux
+            try:
+                # Skúsiť open pre macOS
+                subprocess.call(['open', folder_path])
+            except:
+                try:
+                    # Skúsiť xdg-open pre Linux
+                    subprocess.call(['xdg-open', folder_path])
+                except:
+                    # Záložný variant pre Linux
+                    subprocess.call(['nautilus', folder_path])
+
 def create_gui():
     root = tk.Tk()
     root.title("Jupyter Notebook Converter")
@@ -260,36 +286,68 @@ def create_gui():
     ttk.Radiobutton(single_frame, text="Convert Text to Notebook", variable=single_conversion_type, 
                    value="txt_to_ipynb").grid(row=3, column=1, sticky="w", pady=10)
     
+    # Variable for storing the last successful conversion path
+    last_successful_path = tk.StringVar()
+    
     def convert_single_file():
         in_file = input_path.get()
         out_file = output_path.get()
         
-        if not in_file or not out_file:
-            status_label.config(text="Error: Please select both input and output files")
+        if not in_file:
+            status_label.config(text="Error: Please select an input file")
             return
             
         try:
-            if single_conversion_type.get() == "ipynb_to_txt":
-                # Check file extension for output
-                if not out_file.lower().endswith('.txt'):
+            # If no output path is specified, create it automatically in the same folder
+            if not out_file:
+                input_dir = os.path.dirname(in_file)
+                input_name = os.path.basename(in_file)
+                
+                if single_conversion_type.get() == "ipynb_to_txt":
+                    # Change the extension from .ipynb to .txt
+                    output_name = os.path.splitext(input_name)[0] + ".txt"
+                else:  # txt_to_ipynb
+                    # Change the extension from from .txt to .ipynb
+                    output_name = os.path.splitext(input_name)[0] + ".ipynb"
+                    
+                out_file = os.path.join(input_dir, output_name)
+                output_path.set(out_file)
+            else:
+                # Check and, if necessary, add the correct file extension
+                if single_conversion_type.get() == "ipynb_to_txt" and not out_file.lower().endswith('.txt'):
                     out_file += '.txt'
                     output_path.set(out_file)
-                    
+                elif single_conversion_type.get() == "txt_to_ipynb" and not out_file.lower().endswith('.ipynb'):
+                    out_file += '.ipynb'
+                    output_path.set(out_file)
+            
+            if single_conversion_type.get() == "ipynb_to_txt":
                 convert_ipynb_to_txt(in_file, out_file)
                 status_label.config(text=f"Success: Converted notebook to text file")
             else:  # txt_to_ipynb
-                # Check file extension for output
-                if not out_file.lower().endswith('.ipynb'):
-                    out_file += '.ipynb'
-                    output_path.set(out_file)
-                    
                 convert_txt_to_ipynb(in_file, out_file)
                 status_label.config(text=f"Success: Converted text file to notebook")
+                
+            # Store the path for a button to open the folder
+            last_successful_path.set(out_file)
+            # Activate the button to open the folder
+            open_folder_button.config(state="normal")
+            
         except Exception as e:
             status_label.config(text=f"Error: {str(e)}")
+            open_folder_button.config(state="disabled")
     
-    convert_button = ttk.Button(single_frame, text="Convert", command=convert_single_file)
-    convert_button.grid(row=4, column=1, pady=20)
+    # Buttons for conversion and opening the folder should be placed within a button frame
+    button_frame = ttk.Frame(single_frame)
+    button_frame.grid(row=4, column=0, columnspan=3, pady=20)
+    
+    convert_button = ttk.Button(button_frame, text="Convert", command=convert_single_file)
+    convert_button.pack(side=tk.LEFT, padx=5)
+    
+    open_folder_button = ttk.Button(button_frame, text="Open Destination Folder", 
+                                   command=lambda: open_folder(last_successful_path.get()),
+                                   state="disabled")
+    open_folder_button.pack(side=tk.LEFT, padx=5)
     
     status_label = ttk.Label(single_frame, text="")
     status_label.grid(row=5, column=0, columnspan=3, pady=10)
@@ -316,13 +374,21 @@ def create_gui():
     ttk.Radiobutton(batch_frame, text="Convert Text to Notebooks", variable=conversion_type, 
                    value="txt_to_ipynb").grid(row=3, column=1, sticky="w", pady=10)
     
+    # A variable should be created to store the output folder path for batch conversion
+    batch_output_folder = tk.StringVar()
+    
     def convert_batch():
         in_dir = input_dir.get()
         out_dir = output_dir.get()
         
-        if not in_dir or not out_dir:
-            batch_status.config(text="Error: Please select both input and output folders")
+        if not in_dir:
+            batch_status.config(text="Error: Please select an input folder")
             return
+            
+        # If the output folder is not specified, use the input folder instead
+        if not out_dir:
+            out_dir = in_dir
+            output_dir.set(out_dir)
             
         try:
             if conversion_type.get() == "ipynb_to_txt":
@@ -331,11 +397,27 @@ def create_gui():
             else:
                 count = multiconvert_txt_to_ipynb(in_dir, out_dir)
                 batch_status.config(text=f"Success: Converted {count} text files to notebook format")
+            
+            # Saving the output folder for the open button
+            batch_output_folder.set(out_dir)
+            # Activating the button to open the folder
+            batch_open_button.config(state="normal")
+            
         except Exception as e:
             batch_status.config(text=f"Error: {str(e)}")
+            batch_open_button.config(state="disabled")
     
-    batch_button = ttk.Button(batch_frame, text="Convert Batch", command=convert_batch)
-    batch_button.grid(row=4, column=1, pady=20)
+    # Frame for buttons in batch conversion
+    batch_button_frame = ttk.Frame(batch_frame)
+    batch_button_frame.grid(row=4, column=0, columnspan=3, pady=20)
+    
+    batch_button = ttk.Button(batch_button_frame, text="Convert Batch", command=convert_batch)
+    batch_button.pack(side=tk.LEFT, padx=5)
+    
+    batch_open_button = ttk.Button(batch_button_frame, text="Open Destination Folder", 
+                                  command=lambda: open_folder(batch_output_folder.get()),
+                                  state="disabled")
+    batch_open_button.pack(side=tk.LEFT, padx=5)
     
     batch_status = ttk.Label(batch_frame, text="")
     batch_status.grid(row=5, column=0, columnspan=3, pady=10)
@@ -351,6 +433,8 @@ def create_gui():
     - Single file conversion
     - Batch conversion of multiple files
     - Supports SageMath kernel configuration
+    - Auto-set output path if not specified
+    - Open destination folder in file explorer
     """
     
     about_label = ttk.Label(about_frame, text=about_text, justify="center", wraplength=500)
