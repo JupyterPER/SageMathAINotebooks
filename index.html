@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <title>nbplayer — Jupyter Notebook Player</title>
-        <meta charset="utf-8">
+        <!-- <title>nbplayer — Jupyter Notebook Player</title> -->
+        <meta charset="UTF-8">
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
         <!-- Bootstrap CSS -->
         <meta name="viewport" content="initial-scale=1">
         <script src="./vendor/js/vendor/es5-shim.min.js"></script>
@@ -109,8 +110,11 @@
         <script src="./vendor/js/FileSaver.min.js"></script>
         <script src="./vendor/js/nbpreview.js"></script>
         <script src="./nbplayerConfig.js"></script>
-		<script>let RUN_DELAY = 1000;</script>
-        <script src="./js/nbrunner4.js"></script>
+		<script>
+			let RUN_DELAY = 1000;
+			let aiCellsHidden = false;
+		</script>
+        <script src="./js/nbrunner5.js"></script>
         <script src="./js/nbplayer.min.js"></script>
     </body>
 
