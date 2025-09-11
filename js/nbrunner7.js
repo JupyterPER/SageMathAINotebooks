@@ -71,8 +71,7 @@ function saveHtml() {
         '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.css">\n' +
 
         '<script>let RUN_DELAY = '+ RUN_DELAY +';</script>\n' +
-        // '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner7.js"></script>\n' +
-        '<script src="nbrunner5.js"></script>\n' +
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner7.js"></script>\n' +
         '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbautocompletion.js"></script>\n' +
         '<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>\n' +
         '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css">\n' +
