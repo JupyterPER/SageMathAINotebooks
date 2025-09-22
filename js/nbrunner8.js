@@ -767,9 +767,8 @@ const iconDictionaryNavbar = {
     settings: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="currentColor"  class="icon icon-tabler icons-tabler-filled icon-tabler-settings"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14.647 4.081a.724 .724 0 0 0 1.08 .448c2.439 -1.485 5.23 1.305 3.745 3.744a.724 .724 0 0 0 .447 1.08c2.775 .673 2.775 4.62 0 5.294a.724 .724 0 0 0 -.448 1.08c1.485 2.439 -1.305 5.23 -3.744 3.745a.724 .724 0 0 0 -1.08 .447c-.673 2.775 -4.62 2.775 -5.294 0a.724 .724 0 0 0 -1.08 -.448c-2.439 1.485 -5.23 -1.305 -3.745 -3.744a.724 .724 0 0 0 -.447 -1.08c-2.775 -.673 -2.775 -4.62 0 -5.294a.724 .724 0 0 0 .448 -1.08c-1.485 -2.439 1.305 -5.23 3.744 -3.745a.722 .722 0 0 0 1.08 -.447c.673 -2.775 4.62 -2.775 5.294 0zm-2.647 4.919a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" /></svg>`,
     showHideCode: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-eye-code"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" /><path d="M20 21l2 -2l-2 -2" /><path d="M17 17l-2 2l2 2" /></svg>`,
     editCells: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-markdown"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 5m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z" /><path d="M7 15v-6l2 2l2 -2v6" /><path d="M14 13l2 2l2 -2m-2 2v-6" /></svg>`,
-    importCells: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 32 32"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M28 22v8H4v-8M16 4v20m-8-8l8 8l8-8"/></svg>`,
-
-    exportCells: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 32 32"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M28 22v8H4v-8M16 4v20M8 12l8-8l8 8"/></svg>`,
+    exportCells: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 32 32"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M28 22v8H4v-8M16 4v20m-8-8l8 8l8-8"/></svg>`,
+    importCells: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 32 32"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M28 22v8H4v-8M16 4v20M8 12l8-8l8 8"/></svg>`,
 
 }
 
@@ -1824,26 +1823,46 @@ function createHelpModal() {
     ];
 
     links.forEach(linkData => {
-    const li = document.createElement('li');
-    li.style.margin = '10px 0';
-    li.style.listStyleType = 'disc';
-    const a = document.createElement('a');
-    a.href = linkData.url;
-    a.textContent = linkData.text;
-    a.target = '_blank';
-    a.style.color = '#007bff';
-    a.style.textDecoration = 'none';
-    a.onmouseover = () => a.style.textDecoration = 'underline';
-    a.onmouseout = () => a.style.textDecoration = 'none';
-    li.appendChild(a);
-    list.appendChild(li);
-});
+        const li = document.createElement('li');
+        li.style.margin = '10px 0';
+        li.style.listStyleType = 'disc';
+        const a = document.createElement('a');
+        a.href = linkData.url;
+        a.textContent = linkData.text;
+        a.target = '_blank';
+        a.style.color = '#007bff';
+        a.style.textDecoration = 'none';
+        a.onmouseover = () => a.style.textDecoration = 'underline';
+        a.onmouseout = () => a.style.textDecoration = 'none';
+        li.appendChild(a);
+        list.appendChild(li);
+    });
 
+    // Attribution footer
+    const footer = document.createElement('div');
+    footer.style.marginTop = '20px';
+    footer.style.paddingTop = '10px';
+    footer.style.borderTop = '1px solid #ccc';
+    footer.style.fontSize = '12px';
+    footer.style.color = '#555';
+    footer.style.textAlign = 'center';
+
+    const footerText = document.createElement('p');
+    footerText.innerHTML = `
+        © 2025 Dominik Borovský & Jozef Hanč. Based on work by 
+        <a href="https://github.com/ingodahn/nbplayer" target="_blank" style="color: #007bff; text-decoration: none;">Ingo Dahn</a>, 
+        licensed under 
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" style="color: #007bff; text-decoration: none;">CC-BY-SA 4.0</a>. 
+        Source code: 
+        <a href="https://github.com/JupyterPER/SageMathAINotebooks" target="_blank" style="color: #007bff; text-decoration: none;">GitHub Repository</a>.
+    `;
+    footer.appendChild(footerText);
 
     modal.appendChild(closeBtn);
     modal.appendChild(title);
     modal.appendChild(description);
     modal.appendChild(list);
+    modal.appendChild(footer);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
@@ -1861,7 +1880,7 @@ function createHelpModal() {
         }
     }
     document.addEventListener('keydown', handleKey);
-};
+}
 
 // Renamed updateSettings to be more specific
 function updateSettings() {
