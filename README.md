@@ -84,3 +84,6 @@
   * However, standard undo/redo shortcuts (Ctrl + Z and Ctrl + Shift + Z) still work when editing code or text inside a cell.
 
 ***
+
+© 2025 Dominik Borovský & Jozef Hanč. Based on work by [Ingo Dahn](https://github.com/ingodahn/nbplayer), licensed under [CC-BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+
