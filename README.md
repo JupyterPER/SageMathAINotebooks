@@ -1,37 +1,89 @@
-# READ ME
+# SageMath AI Notebooks
 
-Notebook-Player is a tool to convert Jupyter notebooks into dynamic HTML pages using SageCell.
+**SageMath AI Notebooks** are interactive HTML documents inspired by the *nbplayer* project by Ingo Dahn, extended with richer functionality and improved interactivity.
 
-## Online Instance
+* Brings the familiar computation experience of a Python‑based SageMath CAS, similar to Jupyter Notebooks.
 
-There is an [instance of Notebook Player online](https://dahn-research.eu/nbplayer), provided for free conversion of Jupyter notebooks.
+* Standalone HTML notebooks open directly in any modern web browser, on any platform:
 
-## Installation
+  * **No installation required**.
+  * Computations are handled by a cloud‑based kernel provided by **SageMathCell**.
+  * Only an Internet connection is needed.
 
-*** Local: *** Clone this repo and launch index.html
+***
 
-*** On Server: *** Clone this repo on server. Edit nbplayerConfig.js, replacing `'.'` with the URL of your installation
+## Extended Features
 
-Replace `resources/logo.png` if you want another logo.
+* **Built‑in AI assistant** (via APIs from multiple providers):
 
-## Usage
+  * Provides code generation (`AI Complete`), code formatting and commenting (`AI Format`), and code explanations (`AI Explain`).
+  * **Context‑aware**: the assistant sees code from previous cells.
+  * Requires an API key (both free and paid providers are supported).
+  * The notebook works fully even without enabling the AI assistant.
 
-Open index.html in the project folder. Make the required player settings for the web page to be generated and load the Jupyter notebook file.
+* **Automatic execution of cells** (`Run All` or `Run All Up To`) with adjustable delay between executions.
 
-Create the intended view and save the file.
+* **Import/Export**:
 
-A stylesheet `custom.css` and a Javascript file `custom.js` in the same directory as the output html file can be used to modify the output further.
+  * Convert between Jupyter Notebooks (`.ipynb`) and SageMath AI Notebooks.
+  * Work with standardized human‑readable `.txt` notebook files (useful for conversions, backup, or AI chatbot interactions).
+  * Automatic backup of the current notebook.
 
-## Input and Output Cells
+* **Editable, dynamically rendered Markdown cells** with full **LaTeX** and **HTML** support.
 
-As linked SageCells must be evaluated one after another, it is recommended to split notebooks with many code cells into a set of smaller notebooks. These pages can be brought together again with the [Notebook Site](https://github.com/ingodahn/nbsite) software.
+* **Cell actions**: add, remove, duplicate, reorder, and convert between code and Markdown cells. Controlled from a simple toolbar for each cell.
 
-Input and output cells make it possible to transfer basic data from one notebook player file to another.
+* **Data import**: upload Excel (`.xlsx`) files, automatically generating a code cell with a Pandas DataFrame.
 
-See explanation on `index.html` and in the included sample notebbok `Sample.ipynb`.
+* **Copy computation outputs** (text, tables, plots) from code cells into Markdown cells.
 
-### Known Issues
+* **Dynamic, interactive Table of Contents** generated from Markdown headers.
 
-After saving the resulting html view, the page in the player is no longer functional. In order to generate an alternative view, the page must be reloaded.
+***
 
-### License: CC-BY-SA
+## Deployment Scenarios
+
+* Lightweight work on small or moderately demanding computational projects.
+* Educational purposes and hobbyist usage.
+* Publishing interactive SageMath computations on the web or LMS platforms.
+* Try out the [demo](https://poe.com/chat/v7v05ffkmprl9j7i7o#) (link to be added) or download a **blank template** – that’s all you need to get started.
+
+***
+
+## Motivation
+
+* The simple offline Windows installer for SageMath lost support.
+  * Alternative installations can be resource‑intensive (large memory footprint).
+* Cloud services for SageMath are either unstable for free usage or locked behind a paywall.
+
+***
+
+## Known Issues
+
+### SageMathCell limitations
+
+* The SageMathCell kernel automatically terminates after ~40 minutes (or ~20 minutes of inactivity).
+  * Workaround: restart the notebook and re‑run cells, or save it and reopen later.
+* Some Python/Sage libraries may not be available in SageMathCell.
+  * In such cases, contact the SageMathCell maintainers.
+* Internet access from SageMathCell is restricted for security reasons (GitHub repositories are accessible).
+
+### SageMath AI Notebook limitations
+
+* On the very first “Run All” execution, results from the first cell may appear only in subsequent cells\
+  (delay due to kernel initialization).
+  * Recommended: manually run the first cell, then use “Run All.”
+
+* Saving a notebook triggers a browser **download action**:
+
+  * You cannot continue working on the currently open notebook after saving.
+  * To continue, reopen the downloaded `.html` notebook.
+
+* Outputs need to be recomputed after reopening (unless copied into Markdown via “Copy output to Markdown”).
+
+* Undo/Redo is **not supported** for cell actions (delete, reorder, etc.).
+  * However, standard undo/redo shortcuts still work when editing code or text inside a cell.
+
+***
+
+
