@@ -1,18 +1,18 @@
 # SageMath AI Notebooks
 
-**SageMath AI Notebooks** are interactive HTML documents inspired by the *nbplayer* project by Ingo Dahn, extended with richer functionality and improved interactivity.
+**SageMath AI Notebooks** are interactive HTML documents inspired by the [*nbplayer*](https://github.com/ingodahn/nbplayer), extended with richer functionality and improved interactivity.
 
 * Brings the familiar computation experience of a Python‑based SageMath CAS, similar to Jupyter Notebooks.
 
 * Standalone HTML notebooks open directly in any modern web browser, on any platform:
 
   * **No installation required**.
-  * Computations are handled by a cloud‑based kernel provided by **SageMathCell**.
+  * Computations are handled by a cloud‑based kernel via [SageMathCell](https://sagecell.sagemath.org/).
   * Only an Internet connection is needed.
 
 ***
 
-## Extended Features
+## Features
 
 * **Built‑in AI assistant** (via APIs from multiple providers):
 
@@ -23,13 +23,13 @@
 
 * **Automatic execution of cells** (`Run All` or `Run All Up To`) with adjustable delay between executions.
 
-* **Import/Export**:
+* **Built in Import/Export**:
 
-  * Convert between Jupyter Notebooks (`.ipynb`) and SageMath AI Notebooks.
-  * Work with standardized human‑readable `.txt` notebook files (useful for conversions, backup, or AI chatbot interactions).
+  * Convert between Jupyter Notebooks (`.ipynb`) and SageMath AI Notebooks (`.html`).
+  * Works with standardized human‑readable `.txt` notebook files (useful for conversions, backup, or AI chatbot interactions).
   * Automatic backup of the current notebook.
 
-* **Editable, dynamically rendered Markdown cells** with full **LaTeX** and **HTML** support.
+* **Editable, dynamically rendered Markdown cells** with **LaTeX** and **HTML** support.
 
 * **Cell actions**: add, remove, duplicate, reorder, and convert between code and Markdown cells. Controlled from a simple toolbar for each cell.
 
@@ -46,14 +46,13 @@
 * Lightweight work on small or moderately demanding computational projects.
 * Educational purposes and hobbyist usage.
 * Publishing interactive SageMath computations on the web or LMS platforms.
-* Try out the [demo](https://poe.com/chat/v7v05ffkmprl9j7i7o#) (link to be added) or download a **blank template** – that’s all you need to get started.
 
 ***
 
 ## Motivation
 
 * The simple offline Windows installer for SageMath lost support.
-  * Alternative installations can be resource‑intensive (large memory footprint).
+  * Alternative installations can be resource‑intensive (large memory footprint) and may involve some tweaking.
 * Cloud services for SageMath are either unstable for free usage or locked behind a paywall.
 
 ***
@@ -81,9 +80,7 @@
 
 * Outputs need to be recomputed after reopening (unless copied into Markdown via “Copy output to Markdown”).
 
-* Undo/Redo is **not supported** for cell actions (delete, reorder, etc.).
+* Undo/Redo (as of now) is not supported for cell actions (delete, reorder, etc.).
   * However, standard undo/redo shortcuts still work when editing code or text inside a cell.
 
 ***
-
-
