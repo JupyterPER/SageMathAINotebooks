@@ -7,18 +7,19 @@
 * Standalone HTML notebooks open directly in any modern web browser, on any platform:
 
   * **No installation required**.
-  * Computations are handled by a cloud‑based kernel via [SageMathCell](https://sagecell.sagemath.org/).
+  * Computations are handled by a cloud‑based kernel via [*SageMathCell*](https://sagecell.sagemath.org/).
   * Only an Internet connection is needed.
 
 ***
 
 ## Features
 
-* **Built‑in AI assistant** (via APIs from multiple providers):
+* **Built‑in AI assistant:**
 
   * Provides code generation (`AI Complete`), code formatting and commenting (`AI Format`), and code explanations (`AI Explain`).
   * **Context‑aware**: the assistant sees code from previous cells.
-  * Requires an API key (both free and paid providers are supported).
+  * Implemented via APIs from multiple providers. Requires an API key (both free and paid providers are supported).
+  * Once an API key is provided and saved in the AI settings, assistant actions become available through the toolbar of each code cell.
   * The notebook works fully even without enabling the AI assistant.
 
 * **Automatic execution of cells** (`Run All` or `Run All Up To`) with adjustable delay between executions.
@@ -26,8 +27,7 @@
 * **Built in Import/Export**:
 
   * Convert between Jupyter Notebooks (`.ipynb`) and SageMath AI Notebooks (`.html`).
-  * Works with standardized human‑readable `.txt` notebook files (useful for conversions, backup, or AI chatbot interactions).
-  * Automatic backup of the current notebook.
+  * Works also with standardized human‑readable `.txt` notebook files (useful for further processing, backups, or as attachments for AI chatbot interactions).
 
 * **Editable, dynamically rendered Markdown cells** with **LaTeX** and **HTML** support.
 
@@ -45,7 +45,7 @@
 
 * Lightweight work on small or moderately demanding computational projects.
 * Educational purposes and hobbyist usage.
-* Publishing interactive SageMath computations on the web or LMS platforms.
+* Publishing interactive SageMath computations on the web or some LMS platforms (e.g. LMS Canvas).
 
 ***
 
@@ -69,18 +69,18 @@
 
 ### SageMath AI Notebook limitations
 
-* On the very first “Run All” execution, results from the first cell may appear only in subsequent cells\
+* On the very first *“Run All”* execution, results from the first cell may appear in subsequent cells\
   (delay due to kernel initialization).
-  * Recommended: manually run the first cell, then use “Run All.”
+  * Recommended: manually execute the first cell, then use “Run All” or re-execute affected cell.
 
 * Saving a notebook triggers a browser **download action**:
 
   * You cannot continue working on the currently open notebook after saving.
   * To continue, reopen the downloaded `.html` notebook.
 
-* Outputs need to be recomputed after reopening (unless copied into Markdown via “Copy output to Markdown”).
+* Outputs need to be recomputed after reopening (unless copied into Markdown via *“Copy output to Markdown”*).
 
 * Undo/Redo (as of now) is not supported for cell actions (delete, reorder, etc.).
-  * However, standard undo/redo shortcuts still work when editing code or text inside a cell.
+  * However, standard undo/redo shortcuts (Ctrl + Z and Ctrl + Shift + Z) still work when editing code or text inside a cell.
 
 ***
