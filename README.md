@@ -2,7 +2,7 @@
 
 **SageMath AI Notebooks** are interactive HTML documents inspired by the [*nbplayer*](https://github.com/ingodahn/nbplayer), extended with richer functionality and improved interactivity.
 
-* Brings the familiar computation experience of a Python‑based SageMath CAS, similar to Jupyter Notebooks.
+* Provide an accessible computation experience with the Python‑based [*SageMath*](https://www.sagemath.org/) CAS, similar to Jupyter Notebooks.
 
 * Standalone HTML notebooks open directly in any modern web browser, on any platform:
 
