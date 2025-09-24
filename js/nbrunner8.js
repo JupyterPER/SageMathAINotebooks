@@ -71,7 +71,7 @@ function saveHtml() {
         '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.css">\n' +
 
         '<script>let RUN_DELAY = '+ RUN_DELAY +';</script>\n' +
-        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner7.js"></script>\n' +
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner8.js"></script>\n' +
         '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbautocompletion.js"></script>\n' +
         '<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>\n' +
         '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css">\n' +
@@ -707,6 +707,12 @@ function addControlPanel() {
     toggleAiButton.onclick = toggleAiCellsVisibility;
 
     // Insert the new elements at the beginning of the navbar
+    // Help button
+    const helpButton = document.createElement('button');
+    helpButton.id = 'helpButton';
+    helpButton.innerHTML = iconDictionaryNavbar["help"];
+    helpButton.title = 'Help';
+    helpButton.onclick = createHelpModal; 
     navbar.insertBefore(exportButton, navbar.firstChild);
     navbar.insertBefore(importButton, navbar.firstChild);
     navbar.insertBefore(aiSettingsButton, navbar.firstChild);
@@ -718,7 +724,7 @@ function addControlPanel() {
     // Place Restart Kernel right after Run All Cells
     navbar.insertBefore(restartButton, input.nextSibling);
     // Removed dedicated IPYNB export/import buttons in favor of unified format selection
-
+    navbar.appendChild(helpButton);
     controlPanel.appendChild(toggleNavbarButton);
     document.body.insertBefore(controlPanel, main);
 
@@ -753,6 +759,7 @@ function toggleNavbar() {
 
 
 const iconDictionaryNavbar = {
+    help: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M10 8.484C10.5 7.494 11 7 12 7c1.246 0 2 .989 2 1.978s-.5 1.483-2 2.473V13m0 3.5v.5"/></svg>`,
     runAll: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="currentColor"  class="icon icon-tabler icons-tabler-filled icon-tabler-player-track-next"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M2 5v14c0 .86 1.012 1.318 1.659 .753l8 -7a1 1 0 0 0 0 -1.506l-8 -7c-.647 -.565 -1.659 -.106 -1.659 .753z" /><path d="M13 5v14c0 .86 1.012 1.318 1.659 .753l8 -7a1 1 0 0 0 0 -1.506l-8 -7c-.647 -.565 -1.659 -.106 -1.659 .753z" /></svg>`,
     restart: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-rotate"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M19.95 11a8 8 0 1 0 -.5 4m.5 5v-5h-5" /></svg>`,
     saveNotebook: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-device-floppy"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" /><path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M14 4l0 4l-6 0l0 -4" /></svg>`,
@@ -760,10 +767,8 @@ const iconDictionaryNavbar = {
     settings: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="currentColor"  class="icon icon-tabler icons-tabler-filled icon-tabler-settings"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14.647 4.081a.724 .724 0 0 0 1.08 .448c2.439 -1.485 5.23 1.305 3.745 3.744a.724 .724 0 0 0 .447 1.08c2.775 .673 2.775 4.62 0 5.294a.724 .724 0 0 0 -.448 1.08c1.485 2.439 -1.305 5.23 -3.744 3.745a.724 .724 0 0 0 -1.08 .447c-.673 2.775 -4.62 2.775 -5.294 0a.724 .724 0 0 0 -1.08 -.448c-2.439 1.485 -5.23 -1.305 -3.745 -3.744a.724 .724 0 0 0 -.447 -1.08c-2.775 -.673 -2.775 -4.62 0 -5.294a.724 .724 0 0 0 .448 -1.08c-1.485 -2.439 1.305 -5.23 3.744 -3.745a.722 .722 0 0 0 1.08 -.447c.673 -2.775 4.62 -2.775 5.294 0zm-2.647 4.919a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" /></svg>`,
     showHideCode: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-eye-code"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" /><path d="M20 21l2 -2l-2 -2" /><path d="M17 17l-2 2l2 2" /></svg>`,
     editCells: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-markdown"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 5m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z" /><path d="M7 15v-6l2 2l2 -2v6" /><path d="M14 13l2 2l2 -2m-2 2v-6" /></svg>`,
-    importCells: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 32 32"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M28 22v8H4v-8M16 4v20m-8-8l8 8l8-8"/></svg>`,
-
-    exportCells: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 32 32"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M28 22v8H4v-8M16 4v20M8 12l8-8l8 8"/></svg>`,
-
+    exportCells: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" stroke-width="2"><path fill="currentColor" d="M20.92 15.62a1.15 1.15 0 0 0-.21-.33l-3-3a1 1 0 0 0-1.42 1.42l1.3 1.29H12a1 1 0 0 0 0 2h5.59l-1.3 1.29a1 1 0 0 0 0 1.42a1 1 0 0 0 1.42 0l3-3a.93.93 0 0 0 .21-.33a1 1 0 0 0 0-.76M14 20H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5v3a3 3 0 0 0 3 3h4a1 1 0 0 0 .92-.62a1 1 0 0 0-.21-1.09l-6-6a1.07 1.07 0 0 0-.28-.19h-.09l-.28-.1H6a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h8a1 1 0 0 0 0-2M13 5.41L15.59 8H14a1 1 0 0 1-1-1Z"/></svg>`,
+    importCells: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" stroke-width="2"><path fill="currentColor" d="M11 20H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5v3a3 3 0 0 0 3 3h3v2a1 1 0 0 0 2 0V8.94a1.31 1.31 0 0 0-.06-.27v-.09a1.32 1.32 0 0 0-.19-.29l-6-6a1.32 1.32 0 0 0-.29-.19a.32.32 0 0 0-.09 0l-.31-.1H6a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h5a1 1 0 0 0 0-2m2-14.59L15.59 8H14a1 1 0 0 1-1-1ZM19 15h-5.59l1.3-1.29a1 1 0 0 0-1.42-1.42l-3 3a1.15 1.15 0 0 0-.21.33a1 1 0 0 0 0 .76a.93.93 0 0 0 .21.33l3 3a1 1 0 0 0 1.42 0a1 1 0 0 0 0-1.42L13.41 17H19a1 1 0 0 0 0-2"/></svg>`,
 }
 
 const iconDictionary = {
@@ -1731,8 +1736,150 @@ function createAiSettingsModal() {
     // --- Apply initial visibility state ---
     applyAiCellVisibility(aiCellsHidden);
     // --- End Apply ---
+
+    // Close modal with ESC key
+    function handleKey(event) {
+        if (event.key === "Escape") {
+            removeExistingModal();
+        }
+    }
+    document.addEventListener('keydown', handleKey);
 }
 
+function createHelpModal() {
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.6)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '10000';
+
+    // Create modal content
+    const modal = document.createElement('div');
+    modal.style.backgroundColor = '#fff';
+    modal.style.padding = '20px 20px 30px 20px';
+    modal.style.borderRadius = '8px';
+    modal.style.maxWidth = '500px';
+    modal.style.width = '90%';
+    modal.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
+    modal.style.fontFamily = 'Arial, sans-serif';
+    modal.style.maxHeight = '80%';
+    modal.style.position = 'relative';
+    modal.style.overflowY = 'auto';
+
+    // Close button (x)
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '&times;';
+    closeBtn.style.position = 'absolute';
+    closeBtn.style.top = '10px';
+    closeBtn.style.right = '15px';
+    closeBtn.style.fontSize = '28px';
+    closeBtn.style.fontWeight = 'bold';
+    closeBtn.style.border = 'none';
+    closeBtn.style.background = 'transparent';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.color = '#555';
+    closeBtn.onmouseover = () => closeBtn.style.color = '#000';
+    closeBtn.onmouseout = () => closeBtn.style.color = '#555';
+
+    // Close function (reusable)
+    function closeModal() {
+        if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+            document.removeEventListener('keydown', handleKey);
+        }
+    }
+    closeBtn.onclick = closeModal;
+
+    // Title
+    const title = document.createElement('h2');
+    title.textContent = 'Help Resources';
+    title.style.marginTop = '0';
+
+    // Description
+    const description = document.createElement('p');
+    description.textContent = 'List of helpful materials in Slovak:';
+    description.style.margin = '10px 0 20px 0';
+    description.style.color = '#333';
+    description.style.fontSize = '14px';
+
+    // Links list
+    const list = document.createElement('ul');
+    list.style.paddingLeft = '20px';
+    list.style.margin = '0';
+
+    const links = [
+        { text: 'Notebook User Manual', url: 'https://docs.google.com/document/d/e/2PACX-1vTKGQxS4MhGdYBFHGYsGAc16vJV0aL-DNEcwT5ETWUEN6ikGR4TtZHAy1aw7rNGTzFFPb9l91BasqSM/pub' },
+        { text: 'SageMath: Mathematical Analysis Cheat Sheet', url: 'https://drive.google.com/file/d/1j3UV-MOOJNM_6CNXBJLTaB8dXMsVEdZx/preview' },
+        { text: 'SageMath: Algebra Cheat Sheet', url: 'https://drive.google.com/file/d/1mPK3hbp1ZdHqapRiRwj3JQftBDbaWn03/preview' },
+        { text: 'Markdown and LaTeX Cheat Sheet', url: 'https://drive.google.com/file/d/18iqgfQILf7h7LeRy4cxssYUMaSs2kmXy/preview' }
+    ];
+
+    links.forEach(linkData => {
+        const li = document.createElement('li');
+        li.style.margin = '10px 0';
+        li.style.listStyleType = 'disc';
+        const a = document.createElement('a');
+        a.href = linkData.url;
+        a.textContent = linkData.text;
+        a.target = '_blank';
+        a.style.color = '#007bff';
+        a.style.textDecoration = 'none';
+        a.onmouseover = () => a.style.textDecoration = 'underline';
+        a.onmouseout = () => a.style.textDecoration = 'none';
+        li.appendChild(a);
+        list.appendChild(li);
+    });
+
+    // Attribution footer
+    const footer = document.createElement('div');
+    footer.style.marginTop = '20px';
+    footer.style.paddingTop = '10px';
+    footer.style.borderTop = '1px solid #ccc';
+    footer.style.fontSize = '12px';
+    footer.style.color = '#555';
+    footer.style.textAlign = 'center';
+
+    const footerText = document.createElement('p');
+    footerText.innerHTML = `
+        © 2025 Dominik Borovský & Jozef Hanč. Based on work by 
+        <a href="https://github.com/ingodahn/nbplayer" target="_blank" style="color: #007bff; text-decoration: none;">Ingo Dahn</a>, 
+        licensed under 
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" style="color: #007bff; text-decoration: none;">CC-BY-SA 4.0</a>. 
+        Source code: 
+        <a href="https://github.com/JupyterPER/SageMathAINotebooks" target="_blank" style="color: #007bff; text-decoration: none;">GitHub Repository</a>.
+    `;
+    footer.appendChild(footerText);
+
+    modal.appendChild(closeBtn);
+    modal.appendChild(title);
+    modal.appendChild(description);
+    modal.appendChild(list);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Close modal on overlay click
+    overlay.addEventListener('click', function (event) {
+        if (event.target === overlay) {
+            closeModal();
+        }
+    });
+
+    // Close modal with ESC key
+    function handleKey(event) {
+        if (event.key === "Escape") {
+            closeModal();
+        }
+    }
+    document.addEventListener('keydown', handleKey);
+}
 
 // Renamed updateSettings to be more specific
 function updateSettings() {
@@ -4695,4 +4842,3 @@ document.addEventListener('keydown', function (event) {
         }
     }
 });
-
