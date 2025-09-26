@@ -275,7 +275,7 @@ P.show(
     ymin=-2, ymax=2,
     axes_labels=[r'$x$', r'$y$'],
     title=r'Beautiful Plot of $\sin(x)$, $\cos(x)$ and $e^\{-x/2\}\sin(3x)$',
-    figsize=[7,4],
+    figsize=[5,4],
     tick_formatter=pi,  # ticks in multiples of pi
     axes_labels_size=1.5,
     gridlines=True,

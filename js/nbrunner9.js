@@ -7,10 +7,10 @@ function makeMenu() {
     $("head").first().append('<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css"'), $("body").first().append('<script src="custom.js"><\/script>');
     var t = "de" == e ? "Code ausblenden/einblenden" : "Show / Hide Code",
         n = "de" == e ? "Code-Zellen in der gegebenen Reihenfolge ausfĂĽhren!" : "Execute Cells in the Sequence Given!",
-        a = "de" == e ? "Speichern" : "Save",
+        a = "de" == e ? "Speichern" : "Save (Ctrl+S)",
         s = '<a href="#" role="button" id="read-button" class="btn btn-primary" onclick="setView()">' + ("de" == e ? 'Lesen' : 'Read') + '</a>',
         o = '<a href="#" role="button" id="execute-button" class="btn btn-primary" onclick="setExecute()">' + ('de' == e ? 'AusfĂĽhren' : 'Execute') + '</a>',
-        l = '<div id="navbar">' + ('Exec' == playerConfig.panes ? "" : s + o) + '<a href="#" role="button" class="btn btn-primary" onclick="toggleInput()" title="Hide/Show Code">' + iconDictionaryNavbar["showHideCode"] + '</a>\n  <a href="#" role="button" class="btn btn-primary" onclick="saveHtml()" title="Save">' + iconDictionaryNavbar["saveNotebook"] + "</a>" + '\n  </div>';
+        l = '<div id="navbar">' + ('Exec' == playerConfig.panes ? "" : s + o) + '<a href="#" role="button" class="btn btn-primary" onclick="toggleInput()" title="Hide/Show Code">' + iconDictionaryNavbar["showHideCode"] + '</a>\n  <a href="#" role="button" class="btn btn-primary" onclick="saveHtml()" title="Save (Ctrl+P)">' + iconDictionaryNavbar["saveNotebook"] + "</a>" + '\n  </div>';
     $("body").prepend(l), $("#main").addClass("belowMenu")
 }
 
@@ -496,7 +496,7 @@ function toggleEditMode() {
     const editCellsButton = document.getElementById('editCells');
     if (editCellsButton) {
         editCellsButton.innerHTML = iconDictionaryNavbar["editCells"];
-        editCellsButton.title = 'Edit/View Mode';
+        editCellsButton.title = 'Edit/View Mode (Ctrl+E)';
     }
 }
 
@@ -527,12 +527,12 @@ function addControlPanel() {
     const runButton = document.createElement('button');
     runButton.id = 'runAllCellsButton';
     runButton.innerHTML = iconDictionaryNavbar["runAll"];
-    runButton.title = 'Run All Cells';
+    runButton.title = 'Run All Cells (Ctrl+R)';
 
     const restartButton = document.createElement('button');
     restartButton.id = 'restartKernelButton';
     restartButton.innerHTML = iconDictionaryNavbar["restart"];
-    restartButton.title = 'Restart Sage Kernel and Clear All Outputs';
+    restartButton.title = 'Restart Sage Kernel (Ctrl+K)';
     restartButton.onclick = function () {
         if (typeof restartNotebook === 'function') {
             // Uses defaults in restartNotebook (e.g., newKernel: true, reexecute: false)
@@ -552,13 +552,13 @@ function addControlPanel() {
     const editCellsButton = document.createElement('button');
     editCellsButton.id = 'editCells';
     editCellsButton.innerHTML = iconDictionaryNavbar["editCells"];
-    editCellsButton.title = 'Edit/View Mode (Ctrl+Alt+D)';
+    editCellsButton.title = 'Edit/View Mode (Ctrl+E)';
     editCellsButton.onclick = toggleEditMode;
 
     const exportButton = document.createElement('button');
     exportButton.id = 'exportCells';
     exportButton.innerHTML= iconDictionaryNavbar["exportCells"];
-    exportButton.title = 'Export Notebook';
+    exportButton.title = 'Export Notebook (Ctrl+P)';
     exportButton.onclick = function() {
         showFormatPopup('Export Format', [
             { label: 'TXT', action: downloadNotebookText },
@@ -569,7 +569,7 @@ function addControlPanel() {
     const importButton = document.createElement('button');
     importButton.id = 'importCells';
     importButton.innerHTML = iconDictionaryNavbar["importCells"];
-    importButton.title = 'Import Notebook';
+    importButton.title = 'Import Notebook (Ctrl+I)';
     importButton.onclick = function() {
         showFormatPopup('Import Format', [
             { label: 'TXT', action: () => {
@@ -703,7 +703,7 @@ function addControlPanel() {
     const aiSettingsButton = document.createElement('button');
     aiSettingsButton.id = 'aiSettings';
     aiSettingsButton.innerHTML = iconDictionaryNavbar["settings"];
-    aiSettingsButton.title = 'AI Settings (Ctrl+Alt+A)';
+    aiSettingsButton.title = 'AI Settings';
     aiSettingsButton.onclick = createAiSettingsModal;
 
     // Insert the new elements at the beginning of the navbar
@@ -4273,13 +4273,17 @@ function importFromIPYNB(file) {
 
 // Keyboard shortcuts for navbar actions
 document.addEventListener('keydown', function (event) {
-    // Use Ctrl + Alt + <key>
-    if (event.ctrlKey && event.altKey) {
+    // Use Ctrl + <key>
+    if (event.ctrlKey) {
         const key = event.key.toLowerCase();
         const actions = {
-            d: () => document.getElementById('editCells')?.click(),
-            a: () => document.getElementById('aiSettings')?.click(),
-            c: () => toggleInput(),
+            r: () => document.getElementById('runAllCellsButton')?.click(),
+            s: () => saveHtml(),
+            e: () => document.getElementById('editCells')?.click(),
+            b: () => toggleNavbar(),
+            k: () => document.getElementById('restartKernelButton')?.click(),
+            i: () => document.getElementById('importCells')?.click(),
+            p: () => document.getElementById('exportCells')?.click(),
         };
         if (actions[key]) {
             event.preventDefault();
@@ -4287,27 +4291,4 @@ document.addEventListener('keydown', function (event) {
         }
     }
 });
-
-// // Keyboard shortcuts for navbar actions
-// document.addEventListener('keydown', function (event) {
-//     // Use Ctrl + Alt + <key>
-//     if (event.ctrlKey && event.altKey) {
-//         const key = event.key.toLowerCase();
-//         const actions = {
-//             r: () => document.getElementById('runAllCellsButton')?.click(),
-//             s: () => saveHtml(),
-//             e: () => document.getElementById('editCells')?.click(),
-//             t: () => toggleNavbar(),
-//             k: () => document.getElementById('restartKernelButton')?.click(),
-//             i: () => document.getElementById('importCells')?.click(),
-//             p: () => document.getElementById('exportCells')?.click(),
-//             a: () => document.getElementById('aiSettings')?.click(),
-//             c: () => toggleInput(),
-//         };
-//         if (actions[key]) {
-//             event.preventDefault();
-//             actions[key]();
-//         }
-//     }
-// });
 
