@@ -50,7 +50,6 @@ function saveHtml() {
     const htmlContent = "<!DOCTYPE html>\n<html>\n<head>" +
         '<meta charset="UTF-8">\n' +
         '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">\n' +
-        $("head").html() +
         '</head>\n<body>\n' +
         '<script src="https://cdn.jsdelivr.net/npm/texme@1.2.2"></script>\n' +
         '<div id="main">' + $("#main").html() + '</div>\n' +
@@ -71,7 +70,7 @@ function saveHtml() {
         '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.css">\n' +
 
         '<script>let RUN_DELAY = '+ RUN_DELAY +';</script>\n' +
-        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner7.js"></script>\n' +
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner7v1.js"></script>\n' +
         '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbautocompletion.js"></script>\n' +
         '<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>\n' +
         '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css">\n' +
