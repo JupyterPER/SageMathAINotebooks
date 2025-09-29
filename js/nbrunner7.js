@@ -71,7 +71,8 @@ function saveHtml() {
         '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.css">\n' +
 
         '<script>let RUN_DELAY = '+ RUN_DELAY +';</script>\n' +
-        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner7.js"></script>\n' +
+        // '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner7.js"></script>\n' +
+	'<script src="nbrunner7v1.js"></script>\n' +
         '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbautocompletion.js"></script>\n' +
         '<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>\n' +
         '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css">\n' +
@@ -2821,58 +2822,96 @@ function toggleMarkdownMode() {
     editMode = !editMode;
 }
 
-// 2) Inicializácia po načítaní stránky
 function initializeMarkdownCells() {
     console.log("Initializing markdown cells...");
-    document.querySelectorAll('.nb-cell.nb-markdown-cell').forEach(cell => {
-        // získať pôvodný text
+
+    // Get all markdown cells
+    const markdownCells = document.querySelectorAll('.nb-cell.nb-markdown-cell');
+    const cellsToTransform = [];
+
+    // First collect all cells and their content to avoid DOM modification issues during iteration
+    markdownCells.forEach(cell => {
         let content = '';
+
+        // Look for the content in this order of priority:
+        // 1. textarea's data-original attribute
         const textarea = cell.querySelector('textarea');
-        if (textarea) {
-            content = textarea.getAttribute('data-original') || textarea.value || '';
-        } else {
-            const preview = cell.querySelector('.markdown-preview');
-            if (preview) content = preview.getAttribute('data-original-markdown') || preview.textContent;
+        if (textarea && textarea.getAttribute('data-original')) {
+            content = textarea.getAttribute('data-original');
+            console.log("Found content in textarea data-original");
+        }
+        // 2. preview's data-original-markdown attribute
+        else {
+            const preview = cell.querySelector('.markdown-preview') || cell.querySelector('[id^="preview"]');
+            if (preview && preview.getAttribute('data-original-markdown')) {
+                content = preview.getAttribute('data-original-markdown');
+                console.log("Found content in preview data-original-markdown");
+            }
         }
 
-        // ak už má cell.cmEditor => preskoč
-        if (cell.cmEditor) return;
-
-        // nanovo vytvoriť CodeMirror
-        setTimeout(() => {
-            const editor = CodeMirror.fromTextArea(cell.querySelector('textarea'), {
-                mode: 'markdown',
-                lineNumbers: true,
-                lineWrapping: true,
-                theme: 'default',
-                autoCloseBrackets: true,
-                matchBrackets: true,
-                foldGutter: true,
-                gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]
-            });
-            editor.setSize(null, 150);
-            cell.cmEditor = editor;
-
-            // live update preview
-            editor.on('change', () => {
-                renderMarkdownWithCM(editor, cell.querySelector('.markdown-preview'));
-            });
-
-            // prvotné vykreslenie
-            renderMarkdownWithCM(editor, cell.querySelector('.markdown-preview'));
-
-            // podľa global editMode buď zobraz Edit+Preview, alebo len Preview
-            const cmEl = cell.querySelector('.CodeMirror');
-            const preview = cell.querySelector('.markdown-preview');
-            if (editMode) {
-                cmEl.style.display = 'block';
-                preview.style.display = 'block';
-            } else {
-                cmEl.style.display = 'none';
-                preview.style.display = 'block';
+        // If we still don't have content, try other sources as fallbacks
+        if (!content) {
+            // Try textarea value
+            if (textarea && textarea.value) {
+                content = textarea.value;
+                console.log("Using textarea value as fallback");
             }
-        }, 0);
+            // Try preview innerHTML as last resort
+            else if (preview) {
+                content = preview.innerHTML;
+                console.log("Using preview HTML as fallback (last resort)");
+            }
+        }
+
+        // Store cell and its content for transformation
+        cellsToTransform.push({
+            cell: cell,
+            content: content
+        });
     });
+
+    // Now transform each cell
+    cellsToTransform.forEach(item => {
+        // Create a new markdown cell with the extracted content
+        const newCell = createMarkdownCell(item.content);
+
+        // Replace the old cell with the new one
+        if (item.cell.parentNode) {
+            item.cell.parentNode.replaceChild(newCell, item.cell);
+        }
+    });
+
+    // After a delay, ensure all CodeMirror instances are properly sized and buttons are labeled correctly
+    setTimeout(() => {
+        document.querySelectorAll('.nb-markdown-cell').forEach(cell => {
+            // Set initial visibility based on global edit mode
+            const cmElement = cell.querySelector('.CodeMirror');
+            const preview = cell.querySelector('.markdown-preview');
+
+            if (cmElement && preview) {
+                if (typeof editMode !== 'undefined' && editMode) {
+                    // Edit mode: show editor and preview
+                    cmElement.style.display = 'block';
+                    preview.style.display = 'block';
+                } else {
+                    // View mode: hide editor, show preview
+                    cmElement.style.display = 'none';
+                    preview.style.display = 'block';
+                }
+
+                // If there's a CodeMirror instance, make sure it's refreshed
+                if (cell.cmEditor) {
+                    cell.cmEditor.refresh();
+                }
+            }
+
+            // Update edit/view button text
+            const editButton = cell.querySelector('.control-bar button:first-child');
+            if (editButton) {
+                editButton.textContent = (typeof editMode !== 'undefined' && editMode) ? 'View' : 'Edit';
+            }
+        });
+    }, 300);
 }
 
 function convertToCode(markdownCell) {
@@ -2960,31 +2999,62 @@ function collectNotebookText() {
     return outputs.join('\n@=================\n').trim();
 }
 
-// 3) Prepínanie pre jednotlivú bunku (len keď je CodeMirror prítomný)
 function toggleSingleCellEditMode(cell) {
     const button = cell.querySelector('.control-bar button:first-child');
-    if (!cell.cmEditor) {
-        console.warn("toggleSingleCellEditMode: cell has no CodeMirror editor (likely after saving)");
-        return;
-    }
+    const isCurrentlyInViewMode = button.textContent === 'Edit';
 
-    const cmElement = cell.querySelector('.CodeMirror');
-    const preview = cell.querySelector('.markdown-preview');
-    const isCurrentlyView = button.textContent === 'Edit';
+    if (cell.cmEditor) {
+        // This is a CodeMirror-based markdown cell
+        const cmElement = cell.querySelector('.CodeMirror');
+        const preview = cell.querySelector('.markdown-preview');
 
-    if (isCurrentlyView) {
-        cmElement.style.display = 'block';
-        preview.style.display = 'block';
-        cell.cmEditor.refresh();
-        button.textContent = 'View';
+        if (isCurrentlyInViewMode) {
+            // Switch to edit mode
+            cmElement.style.display = 'block';
+            preview.style.display = 'block';
+            cell.cmEditor.refresh(); // Important for CM to render correctly
+            button.textContent = 'View';
+        } else {
+            // Switch to view mode
+            cmElement.style.display = 'none';
+            preview.style.display = 'block';
+
+            // Update the preview with the latest content
+            renderMarkdownWithCM(cell.cmEditor, preview);
+            button.textContent = 'Edit';
+        }
     } else {
-        cmElement.style.display = 'none';
-        preview.style.display = 'block';
-        renderMarkdownWithCM(cell.cmEditor, preview);
-        button.textContent = 'Edit';
+        // Traditional textarea-based cell
+        const input = cell.querySelector('[id^="mdinput"]');
+        const preview = cell.querySelector('[id^="preview"]');
+
+        if (isCurrentlyInViewMode) {
+            // Switch to edit mode
+            input.style.display = 'block';
+            preview.style.display = 'block';
+            button.textContent = 'View';
+        } else {
+            // Switch to view mode
+            input.style.display = 'none';
+            preview.style.display = 'block';
+
+            // Update preview with current content
+            if (typeof renderMarkdown === 'function') {
+                renderMarkdown(input, preview);
+            } else if (typeof texme !== 'undefined' && texme.render) {
+                preview.innerHTML = texme.render(input.value);
+
+                // Process math if available
+                if (window.MathJax) {
+                    window.MathJax.texReset();
+                    window.MathJax.typesetPromise([preview]);
+                }
+            }
+
+            button.textContent = 'Edit';
+        }
     }
 }
-
 
 function addMarkdownCell(referenceCell, position, initialContent = '') {
     const markdownCell = createMarkdownCell(initialContent);
@@ -2998,48 +3068,83 @@ function addMarkdownCell(referenceCell, position, initialContent = '') {
     return markdownCell;
 }
 
-// 1) Zjednodušenie pred uložením
 function simplifyMarkdownCellsForSaving() {
     console.log("Simplifying markdown cells for saving...");
 
-    // odstráň všetky control bary
-    document.querySelectorAll('.control-bar, .control-ai-bar, .inline-markdown-tips')
-        .forEach(el => el.remove());
+    // First, remove all control bars
+    document.querySelectorAll('.control-bar, .control-ai-bar, .inline-markdown-tips').forEach(bar => {
+        bar.remove();
+    });
 
+    // Handle all markdown cells
     document.querySelectorAll('.nb-markdown-cell').forEach(cell => {
+        // 1. Get content from the cell (prioritizing CodeMirror)
         let content = '';
 
+        // Always try to get content from CodeMirror first as it's most up-to-date
         if (cell.cmEditor) {
-            content = cell.cmEditor.getValue().replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
-            // zrušíme CodeMirror
+            content = cell.cmEditor.getValue();
+            // Clean up only zero-width spaces and BOM while preserving other Unicode
+            content = content.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+            console.log("Got content from CodeMirror:", content.substring(0, 30) + "...");
+
+            // Properly clean up the CodeMirror instance
             cell.cmEditor.toTextArea();
             cell.cmEditor = null;
-        } else {
-            const textarea = cell.querySelector('textarea');
-            if (textarea) content = textarea.value;
         }
 
-        // textarea s obsahom ostáva
+        // 2. Update textarea with the content
         const textarea = cell.querySelector('textarea');
         if (textarea) {
-            textarea.value = content;
+            if (content) {
+                // Update textarea with CodeMirror content
+                textarea.value = content;
+            } else {
+                // If no CodeMirror content was available, get it from the textarea
+                content = textarea.value || textarea.getAttribute('data-original') || '';
+                // Clean up only problematic characters
+                content = content.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+                console.log("Got content from textarea:", content.substring(0, 30) + "...");
+            }
+
+            // Always update the data-original attribute
             textarea.setAttribute('data-original', content);
+
+            // Hide the textarea but keep it in the DOM
             textarea.style.display = 'none';
         }
 
-        // preview s obsahom
+        // 3. Clean up any remaining CodeMirror elements
+        cell.querySelectorAll('.CodeMirror').forEach(cm => {
+            cm.remove();
+            console.log("Removed CodeMirror element");
+        });
+
+        // 4. Update the preview with the latest content
         const preview = cell.querySelector('.markdown-preview');
         if (preview) {
-            preview.setAttribute('data-original-markdown', content);
             preview.style.display = 'block';
-            preview.innerHTML = (typeof texme !== 'undefined' && texme.render)
-                ? texme.render(content)
-                : content;
-        }
 
-        // odstráň DOM elementy codemirroru
-        cell.querySelectorAll('.CodeMirror').forEach(cm => cm.remove());
+            // Store the original markdown in a data attribute
+            preview.setAttribute('data-original-markdown', content);
+
+            // Render the markdown if texme is available
+            if (typeof texme !== 'undefined' && texme.render) {
+                try {
+                    preview.innerHTML = texme.render(content);
+                    console.log("Updated preview with rendered markdown");
+                } catch (e) {
+                    console.error("Error rendering markdown:", e);
+                    preview.textContent = content;
+                }
+            } else {
+                // Fallback if texme isn't available
+                preview.textContent = content;
+            }
+        }
     });
+
+    console.log("Markdown cells simplified for saving");
 }
 
 function copyOutputToMarkdown(cell) {
@@ -4320,57 +4425,63 @@ function deleteAllAiCells() {
  * @returns {string|null} - Sanitized filename base string or null if no suitable H1 is found.
  */
 function extractFilenameBaseFromH1() {
-
-    // pomocná funkcia: odstráni všetky HTML tagy
-    function stripHtmlTags(html) {
-        const tmp = document.createElement("div");
-        tmp.innerHTML = html;
-        return tmp.textContent || tmp.innerText || "";
-    }
-
     const markdownCells = document.querySelectorAll('.nb-cell.nb-markdown-cell');
     for (const cell of markdownCells) {
         let content = '';
 
+        // Prioritize getting the most up-to-date content
+        // 1. Try CodeMirror instance first
         if (cell.cmEditor) {
             content = cell.cmEditor.getValue();
-        } else {
+        }
+        // 2. Try data attribute set by simplifyMarkdownCellsForSaving (if HTML save ran)
+        else {
             const preview = cell.querySelector('.markdown-preview');
             if (preview && preview.getAttribute('data-original-markdown')) {
                 content = preview.getAttribute('data-original-markdown');
-            } else {
+            }
+            // 3. Try textarea data attribute (less likely after simplification, but good fallback)
+            else {
                 const textarea = cell.querySelector('textarea');
-                if (textarea) content = textarea.value;
+                if (textarea && textarea.getAttribute('data-original')) {
+                    content = textarea.getAttribute('data-original');
+                }
+                // 4. Try textarea value as last resort
+                else if (textarea) {
+                    content = textarea.value;
+                }
             }
         }
+
 
         if (content) {
             const lines = content.split('\n');
             for (const line of lines) {
+                // Match lines starting with exactly one '#' followed by a space
                 const match = line.trim().match(/^#\s+(.+)/);
-                if (match && match[1]) {
+                if (match && match[1]) { // match[1] contains the text after '# '
                     let headerText = match[1].trim();
+                    if (headerText) {
+                        // Sanitize the header text for use as a filename
+                        let sanitizedName = headerText
+                            .replace(/\s+/g, '_') // Replace spaces with underscores
+                            .replace(/[\\/:*?"<>|#%&{}]/g, ''); // Remove invalid filename chars + others
 
-                    // odstráni všetky HTML tagy (font, span, b, i, atď.)
-                    headerText = stripHtmlTags(headerText);
+                        // Optional: Limit length
+                        sanitizedName = sanitizedName.substring(0, 100); // Limit to 100 chars
 
-                    // sanitizácia pre názov súboru
-                    let sanitizedName = headerText
-                        .replace(/\s+/g, '_')              // medzery na podčiarkovníky
-                        .replace(/[\\/:*?"<>|#%&{}]/g, ''); // zakázané znaky
-
-                    sanitizedName = sanitizedName.substring(0, 100); // limit 100 znakov
-
-                    if (sanitizedName) {
-                        console.log("Extracted filename base from H1:", sanitizedName);
-                        return sanitizedName;
+                        // Ensure it's not empty after sanitization
+                        if (sanitizedName) {
+                            console.log("Extracted filename base from H1:", sanitizedName);
+                            return sanitizedName; // Return the first valid one found
+                        }
                     }
                 }
             }
         }
     }
     console.log("No suitable H1 header found for filename extraction.");
-    return null;
+    return null; // No suitable H1 found in any markdown cell
 }
 
 
@@ -4695,4 +4806,3 @@ document.addEventListener('keydown', function (event) {
         }
     }
 });
-
