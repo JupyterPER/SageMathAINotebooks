@@ -58,7 +58,7 @@ function saveHtml() {
         '<script src="' + playerConfig.playerPath + '/vendor/js/FileSaver.min.js"></script>\n' +
         '<script src="' + playerConfig.playerPath + '/nbplayerConfig.js"></script>\n' +
 
-        '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">\n' +
+        '<link rel="stylesheet" href="https://cdnjsjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">\n' +
         '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>\n' +
         '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/markdown/markdown.min.js"></script>\n' +
         '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>\n' +
@@ -69,7 +69,7 @@ function saveHtml() {
         '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.css">\n' +
 
         '<script>let RUN_DELAY = '+ RUN_DELAY +';</script>\n' +
-        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner7v1.js"></script>\n' +
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner7v2.js"></script>\n' +
         '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbautocompletion.js"></script>\n' +
         '<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>\n' +
         '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css">\n' +
