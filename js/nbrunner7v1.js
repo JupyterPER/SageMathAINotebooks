@@ -48,8 +48,7 @@ function saveHtml() {
     const filenameBase = extractedName || playerConfig.name; // Use extracted name or fallback to default
 
     const htmlContent = "<!DOCTYPE html>\n<html>\n<head>" +
-        '<meta charset="UTF-8">\n' +
-        '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">\n' +
+        $("head").html()+
         '</head>\n<body>\n' +
         '<script src="https://cdn.jsdelivr.net/npm/texme@1.2.2"></script>\n' +
         '<div id="main">' + $("#main").html() + '</div>\n' +
