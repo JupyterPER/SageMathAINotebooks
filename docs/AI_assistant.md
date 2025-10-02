@@ -1,12 +1,27 @@
-# Bulid in AI Assistant
+# Bulit-in AI Assistant
 
-AI assistant is revealed once the AI API provider is selected and API key is provided.
+To use the built-in AI assistant, follow these steps:
 
-You need to log in on a webpage of provider of your choice. After log in you may be able to generate API key under “Where to obtain API key” URLs, copy it and paste it in AI Setting. Choose propper provider (API URL will load automatically) and also copy and paste proper model of your choice. After saving the changes, set of 3 new buttons will appear near code cells.
+1. **Log in** to your chosen AI provider's website
+2. **Generate an API key** using the "Where to obtain API key" URL provided for each provider below
+3. **Copy the API key** and paste it into the AI Settings
+4. **Select the provider** from the dropdown (the API URL will load automatically)
+5. **Enter the model name** you want to use (copy from the examples below)
+6. **Specify the language** for AI responses (e.g., English, Spanish, French, etc., English by default)
+7. **Save your changes**
+
+After saving your settings, three AI assistant buttons will appear next to your code cells:
+
+- **AI Generate**: Create code based on your description or requirements
+- **AI Format**: Automatically format and clean up your code structure
+- **AI Explain**: Get a detailed explanation of what the code does
+
+> **Note**: The AI will respond in your specified language for all interactions.
 
 ## OpenAI (paid)
 
-API url: https://api.openai.com/v1/chat/completions
+API URL: https://api.openai.com/v1/chat/completions
+
 Where to obtain API key: https://platform.openai.com/api-keys
 
 Available are for example:
@@ -25,7 +40,8 @@ List of models: https://platform.openai.com/docs/models
 
 ## Mistral (free)
 
-API url: https://api.mistral.ai/v1/chat/completions
+API URL: https://api.mistral.ai/v1/chat/completions
+
 Where to obtain API key: https://console.mistral.ai/api-keys
 
 Available are for example:
@@ -47,7 +63,7 @@ List of models: https://docs.mistral.ai/getting-started/models/models_overview
 <!--
 ## Anthropic (not tested)
 
-API url: https://api.anthropic.com/v1/chat/completions
+API URL: https://api.anthropic.com/v1/chat/completions
 
 Where to obtain API key: https://console.anthropic.com/settings/keys
 
@@ -61,7 +77,7 @@ List of models: https://anthropic.mintlify.app/en/api/models-list
 
 ## Poe (both free and paid plan)
 
-API url: https://api.poe.com/v1/chat/completions
+API URL: https://api.poe.com/v1/chat/completions
 
 Where to obtain API key: https://poe.com/api_key
 
@@ -83,7 +99,7 @@ List of models: https://poe.com/explore
 
 ## OpenRouter (free and paid options)
 
-API url: https://openrouter.ai/api/v1/chat/completions
+API URL: https://openrouter.ai/api/v1/chat/completions
 
 Where to obtain API key: https://openrouter.ai/settings/keys
 
@@ -103,7 +119,7 @@ List of models: [https://openrouter.ai/models?order=pricing-low-to-high](https:/
 
 ## Groq (free)
 
-API url:  https://api.groq.com/openai/v1/chat/completions
+API URL:  https://api.groq.com/openai/v1/chat/completions
 
 Where to obtain API key: https://console.groq.com/keys
 
@@ -122,8 +138,9 @@ List of models: https://console.groq.com/docs/models
 
 ## Cerebras
 
-API url: https://api.cerebras.ai/v1/chat/completions
-List of models: https://inference-docs.cerebras.ai/models/overview
+API URL: https://api.cerebras.ai/v1/chat/completions
+
+Where to obtain API key: https://cloud.cerebras.ai/platform/ (API keys option in Menu)
 
 Available are for example:
 
@@ -134,12 +151,13 @@ gpt-oss-120b
 llama-4-maverick-17b-128e-instruct
 ```
 
-Where to obtain API key: https://cloud.cerebras.ai/platform/ (API keys)
-
+List of models: https://inference-docs.cerebras.ai/models/overview
 
 ## Github
 
-API url: https://models.github.ai/inference/chat/completions
+API URL: https://models.github.ai/inference/chat/completions
+
+Where to obtain API key: https://github.com/settings/tokens
 
 Available are for example:
 
@@ -153,12 +171,12 @@ mistral-ai/Mistral-Large-2411
 
 List of models: https://github.com/marketplace/models 
 
-> Click *Model: Select a Model* which provides a list of models. After choosing one click *Use Model* and look for `modelName` in provided code snippets.
+> Click *”Model: Select a Model”* which provides a list of models. After choosing one click *”Use Model”* and look for `model` to obtain its name in provided code snippets.
 
+## DeepSeek (paid)
 
-## DeepSeek
+API URL: https://api.deepseek.com/v1/chat/completions
 
-API url: https://api.deepseek.com/v1/chat/completions
 Where to obtain API key: https://platform.deepseek.com/api_keys
 
 ```python
