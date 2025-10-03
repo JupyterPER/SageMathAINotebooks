@@ -26,13 +26,13 @@ Where to obtain API key: https://platform.openai.com/api-keys
 
 Available are for example:
 
-```python
+```
 gpt-5
 ```
-```python
+```
 gpt-5-mini
 ```
-```python
+```
 gpt-5-nano
 ```
 
@@ -46,18 +46,19 @@ Where to obtain API key: https://console.mistral.ai/api-keys
 
 Available are for example:
 
-```python
+```
 mistral-small-latest
 ```
-```python
+```
 mistral-medium-latest
 ```
-```python
+```
 mistral-large-latest
 ```
-```python
+```
 codestral-latest
 ```
+
 List of models: https://docs.mistral.ai/getting-started/models/models_overview
 
 <!--
@@ -83,19 +84,19 @@ Where to obtain API key: https://poe.com/api_key
 
 Available are for example:
 
-```python 
+```
 Assistant
 ```
-```python
+```
 GPT-5-mini
 ```
-```python
+```
 Claude-Haiku-3
 ```
 
 List of models: https://poe.com/explore
 
-> Depending on your subscription tier, you may choose from premiere tier models. With free tier you can use Assistant.
+> Depending on your subscription tier, you may choose from premiere tier models, such as GPT-5-Chat or Claude-Sonnet-4.5.
 
 ## OpenRouter (free and paid options)
 
@@ -103,13 +104,13 @@ API URL: https://openrouter.ai/api/v1/chat/completions
 
 Where to obtain API key: https://openrouter.ai/settings/keys
 
-```python
+```
 openai/gpt-oss-120b:free
 ```
-```python
+```
 qwen/qwen3-coder:free
 ```
-```python
+```
 x-ai/grok-4-fast:free
 ```
 
@@ -125,10 +126,10 @@ Where to obtain API key: https://console.groq.com/keys
 
 Available are for example:
 
-```python
+```
 openai/gpt-oss-120b
 ```
-```python
+```
 openai/gpt-oss-20b
 ```
 
@@ -179,9 +180,13 @@ API URL: https://api.deepseek.com/v1/chat/completions
 
 Where to obtain API key: https://platform.deepseek.com/api_keys
 
-```python
+```
 deepseek-chat
 ```
 
 List of models: https://api-docs.deepseek.com/quick_start/pricing
 
+<!--
+Disclaimer
+If you are using some of the thinking model, in your response may appear parts related to the CoT of the given model. Make sure to delete them, especially in code cells.
+-->
