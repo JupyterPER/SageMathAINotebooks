@@ -85,5 +85,17 @@
 
 ***
 
+## Acknowledgments
+
+This work was supported by the following research projects funded by the Slovak Research and Development Agency (APVV):
+
+* **APVV-22-0515** - Fyzikálne vzdelávanie metódou zmiešanej výučby v prostredí vzdelávacieho laboratória budúcnosti (Physics Education through Blended Learning in the Environment of the Educational Laboratory of the Future)
+
+* **APVV-21-0369** - Optimálne rozhodovacie a riadiace metódy v komplexných dátových štruktúrach (Optimal Decision-Making and Control Methods in Complex Data Structures)
+
+* **APVV-21-0216** - Pokročilé matematické a štatistické metódy pre meranie a metrológiu (Advanced Mathematical and Statistical Methods for Measurement and Metrology)
+
+***
+
 © 2025 Dominik Borovský & Jozef Hanč. Based on work by [Ingo Dahn](https://github.com/ingodahn/nbplayer), licensed under [CC-BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 
