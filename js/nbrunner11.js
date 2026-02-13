@@ -2470,7 +2470,7 @@ function convertToMarkdown(codeCell) {
     });
 
     // Set initial height and save it to the element for reference
-    editor.setSize(null, 150);
+    editor.setSize(null, null);
     markdownCell.querySelector('.CodeMirror').setAttribute('data-original-height', '150px');
 
     // Store the CodeMirror instance on the cell for later access
@@ -2627,7 +2627,7 @@ function createMarkdownCell(content = '') {
         });
 
         // Set initial height
-        editor.setSize(null, 150);
+        editor.setSize(null, null);
         markdownCell.querySelector('.CodeMirror').setAttribute('data-original-height', '150px');
 
         // Store the CodeMirror instance on the cell for later access

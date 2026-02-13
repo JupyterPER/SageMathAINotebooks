@@ -435,12 +435,12 @@ box-sizing: border-box;
 
 .CodeMirror-fullscreen {
     position: fixed;
-    top: 10%;
-    left: 10%;
-    right: 10%;
-    bottom: 5%;
-    z-index: 9;
-    resize: both;
+    top: 0%;
+    left: 0%;
+    right: 0%;
+    bottom: 0%;
+    resize: vertical;
+    overflow: auto; /* required for resize to work */
 }
 
 /* CodeMirror Custom Styling */
@@ -451,6 +451,7 @@ box-sizing: border-box;
     line-height: 1.5;
     border: 1px solid #ddd;
     border-radius: 4px;
+    resize: vertical;
 }
 
 /* Editor container and Markdown cells */
@@ -473,7 +474,7 @@ box-sizing: border-box;
     min-height: 50px;
 }
 
-/* Add to your CSS file for better visibility of empty markdown cells */
+
 .empty-markdown-preview {
     min-height: 30px;
     border: 1px dashed #ccc;
@@ -845,4 +846,9 @@ table.dataframe tbody tr:hover {
 
 .sagecell_poweredBy {
     display: none !important;
+}
+
+.sagecell .CodeMirror-scroll {
+    min-height: 3em;
+    max-height: 100%;
 }
