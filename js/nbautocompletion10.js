@@ -687,21 +687,12 @@ function enhanceSageCellsWithGlobalAutocomplete() {
                 }
             },
             
-            // Run current cell and move to next (Shift+Enter)
-            "Shift-Enter": function(cm) {
-                const wrapper = cm.getWrapperElement();
-                const cell = wrapper.closest('.nb-code-cell');
-                if (cell) {
-                    const executeButton = cell.querySelector('.sagecell_evalButton');
-                    if (executeButton) {
-                        executeButton.click();
-                    }
-                    // Move focus to next cell
-                    setTimeout(() => {
-                        focusRelativeCodeMirror(cm, 1);
-                    }, 500);
-                }
-            },
+        // Run current cell and move to next (Shift+Enter)
+        "Shift-Enter": function(cm) {
+            setTimeout(() => {
+                focusRelativeCodeMirror(cm, 1);
+            }, 500);
+        },
         
         // Delete with confirmation (Alt+D)
         "Alt-D": function(cm) {

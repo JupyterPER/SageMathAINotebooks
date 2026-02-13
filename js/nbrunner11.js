@@ -252,13 +252,13 @@ function getCleanHead() {
     });
     
     // Keep essential stylesheets (by href URL patterns)
-    const keepLinkPatterns = [
+     const keepLinkPatterns = [
         'bootstrap',
         'katex',
         'prism',
         'notebook.css',
         'nbpreview.css',
-        'nbplayer.css',
+        'nbplayer',
         'custom.css'
     ];
     
