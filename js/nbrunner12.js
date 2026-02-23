@@ -3111,30 +3111,23 @@ function simplifyMarkdownCellsForSaving() {
 }
 
 function copyOutputToMarkdown(cell) {
-    // Check if this is an AI cell
     const isAICell = cell.querySelector('.CodeMirror') &&
         cell.querySelector('.CodeMirror').CodeMirror &&
         cell.querySelector('.CodeMirror').CodeMirror.getValue().includes('# -START OF AI CELL-');
 
-    // Find all output elements
     const outputContainer = cell.querySelector('.sagecell_sessionOutput');
-
     if (!outputContainer) {
         console.log("No output container found to copy");
         return;
     }
 
-    // Skip spinners
     const spinners = outputContainer.querySelectorAll('.sagecell_spinner');
     spinners.forEach(spinner => spinner.remove());
 
     let outputContent = '';
     let hasContent = false;
-
-    // Set to track items we've already processed
     const processedItems = new Set();
 
-    // Helper function to add content if it hasn't been added already
     function addUniqueContent(content, id) {
         if (!processedItems.has(id)) {
             outputContent += content;
@@ -3145,61 +3138,56 @@ function copyOutputToMarkdown(cell) {
         return false;
     }
 
-    // Handle error outputs (sagecell_pyerr)
     const errorElements = outputContainer.querySelectorAll('.sagecell_pyerr');
     if (errorElements.length > 0) {
-        // Use only the first error element if multiple exist
         const error = errorElements[0];
-        addUniqueContent('<!-- sage output error -->\n' + error.outerHTML + '\n\n', 'error-' + error.textContent.substring(0, 50))
+        addUniqueContent('<!-- sage output error -->\n' + error.outerHTML + '\n\n',
+            'error-' + error.textContent.substring(0, 50));
     }
 
-    // Handle images (plots)
+    // ── Accept ANY non-spinner image that appeared in the cell output ──────────
+    // This covers: official sagecell.sagemath.org, self-hosted IP servers,
+    // custom domains, data URIs, and URLs like:
+    // http://80.91.79.120/kernel/UUID/files/tmp_xyz.png?m=timestamp
     const imageElements = outputContainer.querySelectorAll('img:not(.sagecell_spinner)');
-    let images = Array.from(imageElements).filter(img =>
-        img.src.includes('sagecell.sagemath.org/kernel') &&
-        !img.classList.contains('sagecell_spinner')
-    );
-
-    // Deduplicate images based on src
-    const uniqueImageUrls = new Set();
-    images = images.filter(img => {
-        if (uniqueImageUrls.has(img.src)) {
-            return false;
-        }
-        uniqueImageUrls.add(img.src);
+    let images = Array.from(imageElements).filter(img => {
+        if (!img.src || img.src === '') return false;
+        if (img.classList.contains('sagecell_spinner')) return false;
+        // Exclude known UI/icon images by checking for sagecell-specific class names
+        if (img.classList.contains('sagecell_icon')) return false;
         return true;
     });
 
-    // Handle plain text outputs
+    // Deduplicate by src
+    const uniqueImageUrls = new Set();
+    images = images.filter(img => {
+        if (uniqueImageUrls.has(img.src)) return false;
+        uniqueImageUrls.add(img.src);
+        return true;
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
     const preElements = outputContainer.querySelectorAll('pre:not(.sagecell_stdout):not(.sagecell_pyerr)');
     if (preElements.length > 0) {
-        // Use only the first pre element if they have the same content
         const uniquePreContents = new Map();
-
         preElements.forEach(pre => {
             const content = pre.textContent.trim();
             if (!uniquePreContents.has(content)) {
                 uniquePreContents.set(content, pre);
-                addUniqueContent('<!-- sage output text -->\n' + content + '\n\n', 'pre-' + content.substring(0, 50));
+                addUniqueContent('<!-- sage output text -->\n' + content + '\n\n',
+                    'pre-' + content.substring(0, 50));
             }
         });
     }
 
-    // Handle MathJax containers
     const mjxContainers = outputContainer.querySelectorAll('mjx-container');
     if (mjxContainers.length > 0) {
-        // Track unique MathJax expressions
         const uniqueMathJax = new Set();
-
         mjxContainers.forEach(container => {
-            // Generate a signature for this MathJax content
             const mathText = container.querySelector('mjx-assistive-mml')?.textContent || container.textContent;
             const mathSignature = 'mathjax-' + mathText.substring(0, 50);
-
             if (!uniqueMathJax.has(mathSignature)) {
                 uniqueMathJax.add(mathSignature);
-
-                // Find the parent div containing the MathJax
                 let mjxParent = container.closest('div');
                 if (mjxParent) {
                     addUniqueContent('<!-- sage output math -->\n' + mjxParent.outerHTML + '\n\n', mathSignature);
@@ -3208,61 +3196,45 @@ function copyOutputToMarkdown(cell) {
         });
     }
 
-    // Handle stdout
     const stdoutElements = outputContainer.querySelectorAll('.sagecell_stdout');
     if (stdoutElements.length > 0) {
-        // Use only the first stdout if multiple exist
         const stdout = stdoutElements[0];
-        const stdoutContent = isAICell ?
-            stdout.textContent.trim() + '\n\n' :
-            stdout.outerHTML + '\n\n';
-
+        const stdoutContent = isAICell
+            ? stdout.textContent.trim() + '\n\n'
+            : stdout.outerHTML + '\n\n';
         addUniqueContent(stdoutContent, 'stdout-' + stdout.textContent.substring(0, 50));
     }
 
-    // Handle dataframes
     const dataframeElements = outputContainer.querySelectorAll('.dataframe');
     if (dataframeElements.length > 0) {
-        // Use only the first dataframe if multiple exist with same structure
         const dataframe = dataframeElements[0];
-
-        // Get the parent container with all styles
         let tableParent = dataframe.closest('div');
         if (tableParent) {
-            // Use number of rows and columns as signature
             const rowCount = dataframe.querySelectorAll('tr').length;
             const colCount = dataframe.querySelector('tr')?.querySelectorAll('th, td').length || 0;
-            const dfSignature = `dataframe-${rowCount}x${colCount}`;
-
-            addUniqueContent('<!-- sage output dataframe -->\n' + tableParent.outerHTML + '\n\n', dfSignature);
+            addUniqueContent('<!-- sage output dataframe -->\n' + tableParent.outerHTML + '\n\n',
+                `dataframe-${rowCount}x${colCount}`);
         } else {
             addUniqueContent('<!-- sage output dataframe -->\n' + dataframe.outerHTML + '\n\n', 'dataframe');
         }
     }
 
-    // If we have no content yet but have images, we'll handle those later
     if (!hasContent && images.length === 0) {
         console.log("No valid output content found to copy");
         return;
     }
 
-    // Create a new markdown cell below the current cell
     const newMarkdownCell = addMarkdownCell(cell, 'below', outputContent);
 
-    // Process images if any exist
     if (images.length > 0) {
-        // Show a loading indicator if we're waiting for images
         if (newMarkdownCell.cmEditor) {
-            const loadingText = outputContent ?
-                outputContent + "\n\n*Loading image(s)...*" :
-                "*Loading image(s)...*";
+            const loadingText = outputContent
+                ? outputContent + "\n\n*Loading image(s)...*"
+                : "*Loading image(s)...*";
             newMarkdownCell.cmEditor.setValue(loadingText);
         }
-
-        // Try different methods to handle images
         processImagesWithFallbacks(images, 0, outputContent, newMarkdownCell);
     } else {
-        // No images to process, just finalize the cell
         finalizeMarkdownCell(newMarkdownCell, outputContent);
     }
 }
@@ -3270,94 +3242,51 @@ function copyOutputToMarkdown(cell) {
 // Improved function to process images with multiple fallback methods
 function processImagesWithFallbacks(images, index, currentContent, markdownCell) {
     if (index >= images.length) {
-        // All images processed, finalize the cell
         finalizeMarkdownCell(markdownCell, currentContent);
         return;
     }
 
     const currentImage = images[index];
+    const src = currentImage.src;
 
-    // Only process images from sagecell
-    if (currentImage.src.includes('sagecell.sagemath.org/kernel')) {
-        // Method 1: Try using convertImageToBase64 first
-        convertImageToBase64(currentImage.src)
-            .then(base64String => {
-                addImageToContent();
-
-                // Helper to add image
-                function addImageToContent() {
-                    // Add a line break before images if needed
-                    if (currentContent && !currentContent.endsWith('\n\n')) {
-                        currentContent += '\n\n';
-                    }
-
-                    // Add the embedded image to our markdown
-                    currentContent += `<!-- sage output image -->\n![Output Image ${index + 1}](${base64String})\n\n`;
-
-                    // Update the cell with progress
-                    if (markdownCell.cmEditor) {
-                        markdownCell.cmEditor.setValue(currentContent);
-                    }
-
-                    // Process next image
-                    processImagesWithFallbacks(images, index + 1, currentContent, markdownCell);
-                }
-            })
-            .catch(error => {
-                console.warn("Error with method 1, trying method 2:", error);
-
-                // Method 2: Try using fetch API
-                fetch(currentImage.src)
-                    .then(response => response.blob())
-                    .then(blob => {
-                        return new Promise((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onloadend = () => resolve(reader.result);
-                            reader.onerror = reject;
-                            reader.readAsDataURL(blob);
-                        });
-                    })
-                    .then(dataUrl => {
-                        // Add a line break before images if needed
-                        if (currentContent && !currentContent.endsWith('\n\n')) {
-                            currentContent += '\n\n';
-                        }
-
-                        // Add the embedded image to our markdown
-                        currentContent += `<!-- sage output image -->\n![Output Image ${index + 1}](${dataUrl})\n\n`;
-
-                        // Update the cell with progress
-                        if (markdownCell.cmEditor) {
-                            markdownCell.cmEditor.setValue(currentContent);
-                        }
-
-                        // Process next image
-                        processImagesWithFallbacks(images, index + 1, currentContent, markdownCell);
-                    })
-                    .catch(fetchError => {
-                        console.warn("All methods failed, using original URL:", fetchError);
-
-                        // Fallback to original URL if all methods fail
-                        if (currentContent && !currentContent.endsWith('\n\n')) {
-                            currentContent += '\n\n';
-                        }
-
-                        // Add a direct link with warning
-                        currentContent += `<!-- sage output image -->\n![Output Image ${index + 1}](${currentImage.src})\n\n`;
-                        currentContent += "*Note: Could not convert image to embedded format. This URL may expire.*\n\n";
-
-                        // Update the cell
-                        if (markdownCell.cmEditor) {
-                            markdownCell.cmEditor.setValue(currentContent);
-                        }
-
-                        processImagesWithFallbacks(images, index + 1, currentContent, markdownCell);
-                    });
-            });
-    } else {
-        // Skip non-sagecell images
+    function appendImage(dataUrl) {
+        if (currentContent && !currentContent.endsWith('\n\n')) currentContent += '\n\n';
+        currentContent += `<!-- sage output image -->\n![Output Image ${index + 1}](${dataUrl})\n\n`;
+        setEditorContent(markdownCell, currentContent);
         processImagesWithFallbacks(images, index + 1, currentContent, markdownCell);
     }
+
+    // Data URI — embed directly, no conversion needed
+    if (src.startsWith('data:')) {
+        appendImage(src);
+        return;
+    }
+
+    // Method 1: fetch (works when server sends CORS headers)
+    fetch(src)
+        .then(res => {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.blob();
+        })
+        .then(blob => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        }))
+        .then(dataUrl => appendImage(dataUrl))
+        .catch(fetchErr => {
+            console.warn('Fetch failed, trying canvas:', fetchErr);
+
+            // Method 2: canvas
+            convertImageToBase64(src)
+                .then(base64 => appendImage(base64))
+                .catch(canvasErr => {
+                    console.warn('Canvas failed, skipping image:', canvasErr);
+                    // Skip this image but continue with remaining ones
+                    processImagesWithFallbacks(images, index + 1, currentContent, markdownCell);
+                });
+        });
 }
 
 // Improved convertImageToBase64 function with better error handling
@@ -3409,50 +3338,35 @@ function convertImageToBase64(url) {
     });
 }
 
-// Finalizes a markdown cell with the provided content and sets it to the specified view mode
-
-function finalizeMarkdownCell(markdownCell, content, viewMode = 'view') {
+function setEditorContent(markdownCell, content) {
     if (!markdownCell.cmEditor) {
-        console.log("No editor found for markdown cell");
+        setTimeout(() => setEditorContent(markdownCell, content), 30);
         return;
     }
-
-    // Remove any loading indicators
-    content = content.replace('*Loading image(s)...*', '');
-
-    // Set final content
     markdownCell.cmEditor.setValue(content);
+    const preview = markdownCell.querySelector('.markdown-preview');
+    if (preview) {
+        preview.classList.remove('empty-markdown-preview');
+        renderMarkdownWithCM(markdownCell.cmEditor, preview);
+    }
+}
 
-    // Force a refresh of the editor to make sure content is fully registered
-    markdownCell.cmEditor.refresh();
+// Finalizes a markdown cell with the provided content and sets it to the specified view mode
 
-    // Give the content time to fully render before setting view mode
-    setTimeout(() => {
-        // Determine the current mode
-        const isCurrentlyEditing = markdownCell.classList.contains('edit-mode');
-        const shouldToggle = (viewMode === 'view' && isCurrentlyEditing) ||
-            (viewMode === 'edit' && !isCurrentlyEditing);
-
-        // Toggle only if needed to reach the desired state
-        if (shouldToggle) {
-            toggleSingleCellEditMode(markdownCell);
+function finalizeMarkdownCell(markdownCell, content) {
+    function applyContent() {
+        if (!markdownCell.cmEditor) {
+            setTimeout(applyContent, 30);
+            return;
         }
-
-        // Another short delay before focusing to ensure any toggle is complete
-        setTimeout(() => {
-            // Process any MathJax content if MathJax is available and we're in view mode
-            if (window.MathJax && viewMode === 'view') {
-                window.MathJax.typeset();
-            }
-
-            // Focus on the cell
-            if (markdownCell.cmEditor) {
-                markdownCell.cmEditor.focus();
-            }
-
-            console.log(`Markdown cell finalized and set to ${viewMode} mode`);
-        }, 100); // 100ms delay after any toggle
-    }, 300); // 300ms delay before any toggle
+        markdownCell.cmEditor.setValue(content);
+        const preview = markdownCell.querySelector('.markdown-preview');
+        if (preview) {
+            preview.classList.remove('empty-markdown-preview');
+            renderMarkdownWithCM(markdownCell.cmEditor, preview);
+        }
+    }
+    applyContent();
 }
 
 // Add numbering to all SageCells

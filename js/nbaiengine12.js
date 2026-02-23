@@ -478,7 +478,7 @@ function setApiPreset(provider) {
         },
         openrouter: {
             url: 'https://openrouter.ai/api/v1/chat/completions',
-            model: 'openrouter/aurora-alpha' 
+            model: 'openai/gpt-oss-120b' 
         },
         groq: {
             url: 'https://api.groq.com/openai/v1/chat/completions',
