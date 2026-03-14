@@ -1717,8 +1717,8 @@ function createHelpModal() {
 
     const footerText = document.createElement('p');
     footerText.innerHTML = `
-        © 2025 Dominik Borovský & Jozef Hanč. Based on work by 
-        <a href="https://github.com/ingodahn/nbplayer" target="_blank" style="color: #007bff; text-decoration: none;">Ingo Dahn</a>, 
+        © 2025 Dominik Borovský & Jozef Hanč. Based on 
+        <a href="https://github.com/ingodahn/nbplayer" target="_blank" style="color: #007bff; text-decoration: none;">nbplayer project</a>, 
         licensed under 
         <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" style="color: #007bff; text-decoration: none;">CC-BY-SA 4.0</a>. 
         Source code: 
