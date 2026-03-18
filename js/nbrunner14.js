@@ -91,7 +91,7 @@ function hideLoadingOverlay() {
 
 function makeMenu() {
     var e = getBrowserLanguage();
-    $("head").first().append('<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css"'), $("body").first().append('<script src="custom.js"><\/script>');
+    $("head").first().append('<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer14.css"'), $("body").first().append('<script src="custom.js"><\/script>');
     var t = "de" == e ? "Code ausblenden/einblenden" : "Show / Hide Code",
         n = "de" == e ? "Code-Zellen in der gegebenen Reihenfolge ausfĂĽhren!" : "Execute Cells in the Sequence Given!",
         a = "de" == e ? "Speichern" : "Save (Ctrl+S)",
@@ -173,10 +173,10 @@ function saveHtml() {
         '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.css">\n' +
 
         '<script>let RUN_DELAY = '+ RUN_DELAY +';</script>\n' +
-        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner12.js"></script>\n' +
-        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbaiengine12.js"></script>\n' +
-        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbaipriming.js"></script>\n' +
-        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbautocompletion10.js"></script>\n' +
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner14.js"></script>\n' +
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbaiengine13.js"></script>\n' +
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbaipriming13.js"></script>\n' +
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbautocompletion13.js"></script>\n' +
         '<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>\n' +
         '<script>\n' +
         '  playerConfig=' + JSON.stringify(playerConfig) + ';\n' +
@@ -860,9 +860,9 @@ function addControlPanel() {
     controlPanel.appendChild(toggleNavbarButton);
     document.body.insertBefore(controlPanel, main);
 
-    const linkElement = document.querySelector('link[href="https://dahn-research.eu/nbplayer/css/nbplayer.css"]');
+    const linkElement = document.querySelector('link[href="https://dahn-research.eu/nbplayer/css/nbplayer14.css"]');
     if (linkElement) {
-        linkElement.href = "https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer.css";
+        linkElement.href = "https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer14.css";
     }
 
     // Automatically click the Edit Cells button twice
