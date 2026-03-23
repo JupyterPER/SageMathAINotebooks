@@ -103,7 +103,7 @@ fieldset[disabled] .btn-primary.focus {
 /* Page content */
 #main {
   padding: 16px;
-    width: 75%;
+    width: 90%;
     max-width: 100ch;
     margin: 0 auto;
 }
