@@ -190,6 +190,7 @@ function saveHtml() {
         '  let SAGECELL_URL=' + JSON.stringify(SAGECELL_URL) + ';\n' +
         '  makeMenu();\n' +
         '  localize();\n' +
+        '  createTableOfContents();\n' +
         '  loadStatus();\n' +
         '  makeSageCells(playerConfig);\n' +
         '  launchPlayer();\n' +
@@ -201,6 +202,7 @@ function saveHtml() {
         '  let CUSTOM_CONTEXT=' + currentCustomContext + ';\n' +
         '  let CUSTOM_CSS=' + currentCustomCSS + ';\n' +
         '  if (CUSTOM_CSS) applyCustomCSS(CUSTOM_CSS);\n' +
+        '  addCommentShortcutToAllSageCells();\n' +
         '</script>\n' +
         '</body>\n</html>';
     
