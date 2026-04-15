@@ -711,6 +711,12 @@ function addControlPanel() {
     editCellsButton.title = 'Edit/View Mode (Ctrl+E)';
     editCellsButton.onclick = toggleEditMode;
 
+    const fullWidthButton = document.createElement('button');
+    fullWidthButton.id = 'fullWidth';
+    fullWidthButton.innerHTML = iconDictionaryNavbar["fullWidth"];
+    fullWidthButton.title = 'Full Width';
+    fullWidthButton.onclick = flipMaxWidth;
+
     const exportButton = document.createElement('button');
     exportButton.id = 'exportCells';
     exportButton.innerHTML= iconDictionaryNavbar["exportCells"];
@@ -876,6 +882,7 @@ function addControlPanel() {
     navbar.insertBefore(aiSettingsButton, navbar.firstChild);
     // Disabled Toggle AI Cells Button
     // navbar.insertBefore(toggleAiButton, aiSettingsButton.nextSibling);
+    navbar.insertBefore(fullWidthButton, navbar.firstChild);
     navbar.insertBefore(editCellsButton, navbar.firstChild);
     navbar.insertBefore(input, navbar.firstChild);
     navbar.insertBefore(runButton, navbar.firstChild);
@@ -928,6 +935,7 @@ const iconDictionaryNavbar = {
     exportCells: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" stroke-width="2"><path fill="currentColor" d="M20.92 15.62a1.15 1.15 0 0 0-.21-.33l-3-3a1 1 0 0 0-1.42 1.42l1.3 1.29H12a1 1 0 0 0 0 2h5.59l-1.3 1.29a1 1 0 0 0 0 1.42a1 1 0 0 0 1.42 0l3-3a.93.93 0 0 0 .21-.33a1 1 0 0 0 0-.76M14 20H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5v3a3 3 0 0 0 3 3h4a1 1 0 0 0 .92-.62a1 1 0 0 0-.21-1.09l-6-6a1.07 1.07 0 0 0-.28-.19h-.09l-.28-.1H6a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h8a1 1 0 0 0 0-2M13 5.41L15.59 8H14a1 1 0 0 1-1-1Z"/></svg>`,
     importCells: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" stroke-width="2"><path fill="currentColor" d="M11 20H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5v3a3 3 0 0 0 3 3h3v2a1 1 0 0 0 2 0V8.94a1.31 1.31 0 0 0-.06-.27v-.09a1.32 1.32 0 0 0-.19-.29l-6-6a1.32 1.32 0 0 0-.29-.19a.32.32 0 0 0-.09 0l-.31-.1H6a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h5a1 1 0 0 0 0-2m2-14.59L15.59 8H14a1 1 0 0 1-1-1ZM19 15h-5.59l1.3-1.29a1 1 0 0 0-1.42-1.42l-3 3a1.15 1.15 0 0 0-.21.33a1 1 0 0 0 0 .76a.93.93 0 0 0 .21.33l3 3a1 1 0 0 0 1.42 0a1 1 0 0 0 0-1.42L13.41 17H19a1 1 0 0 0 0-2"/></svg>`,
     tableOfContents: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" stroke-width="2"><path fill="currentColor" d="M3 7h14a1 1 0 0 0 0-2H3a1 1 0 0 0 0 2zm4 4h10a1 1 0 0 0 0-2H7a1 1 0 0 0 0 2zm0 4h10a1 1 0 0 0 0-2H7a1 1 0 0 0 0 2zm-4 4h14a1 1 0 0 0 0-2H3a1 1 0 0 0 0 2z"/></svg>`,
+    fullWidth: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="0.4"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M4.81812 4.68161C4.99386 4.85734 4.99386 5.14227 4.81812 5.318L3.08632 7.0498H11.9135L10.1817 5.318C10.006 5.14227 10.006 4.85734 10.1817 4.68161C10.3575 4.50587 10.6424 4.50587 10.8181 4.68161L13.3181 7.18161C13.4939 7.35734 13.4939 7.64227 13.3181 7.818L10.8181 10.318C10.6424 10.4937 10.3575 10.4937 10.1817 10.318C10.006 10.1423 10.006 9.85734 10.1817 9.68161L11.9135 7.9498H3.08632L4.81812 9.68161C4.99386 9.85734 4.99386 10.1423 4.81812 10.318C4.64239 10.4937 4.35746 10.4937 4.18173 10.318L1.68173 7.818C1.50599 7.64227 1.50599 7.35734 1.68173 7.18161L4.18173 4.68161C4.35746 4.50587 4.64239 4.50587 4.81812 4.68161Z"/></svg>`,
 }
 
 const iconDictionary = {
@@ -5114,4 +5122,10 @@ window.addEventListener('load', function() {
     }, 500); // Adjust delay as needed
 });
 
+function flipMaxWidth() {
+    const main = document.getElementById('main');
+    if (!main) return;
 
+    const current = getComputedStyle(main).maxWidth;
+    main.style.maxWidth = current === '90%' ? '750px' : '90%';
+}
