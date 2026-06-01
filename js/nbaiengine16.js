@@ -667,7 +667,7 @@ async function formatAndLoadCodeIntoCell(cell, aiCommand, currentModel, apiKey, 
     const prompt = preparePrompt(context, userCode, currentLanguage);
 
     // Create temporary loading cell
-    const loadingCell = addMarkdownCell(cell, "below", "*AI is working...*");
+    const loadingCell = addMarkdownCell(cell, "below", '<div class="AIstatus">AI is working </div>');
 
     try {
         let aiText = await callAiApi(API_URL, currentModel, prompt, aiCommand, aiSageDocs, currentCustomContext, apiKey);

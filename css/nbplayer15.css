@@ -900,3 +900,35 @@ table.dataframe tbody tr:hover {
     background-color: #f5f5f5;
     font-style: italic;
 }
+
+/* AI status animation */
+
+.AIstatus {
+  font-weight: bold;
+  font-style: italic;
+  color:var(--sagecell-number-color);
+}
+
+.AIstatus::after {
+  content: '...';
+  display: inline-block;
+  animation: dots 1.5s steps(4, end) infinite;
+  width: 1em;
+  text-align: left;
+}
+
+@keyframes dots {
+  0%, 20% { content: '.'; }
+  40% { content: '..'; }
+  60%, 100% { content: '...'; }
+}
+
+.AIstatus {
+  font-weight: bold;
+  font-style: italic;
+  color: var(--sagecell-number-color);
+  border: 2px solid var(--sagecell-number-color);
+  padding: 8px 12px;
+  display: inline-block;
+  border-radius: 4px;
+}
