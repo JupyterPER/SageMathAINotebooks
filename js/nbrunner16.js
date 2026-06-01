@@ -1906,7 +1906,7 @@ function getFormattedDate() {
 
 // Pattern that recognises a "minified" line produced by encodeCodeToBase64Line.
 // Tolerant of single OR double quotes around the base64 string.
-const MINIFIED_LINE_REGEX = /^\s*import\s+base64\s*;\s*exec\s*\(\s*preparse\s*\(\s*base64\.b64decode\s*\(\s*["']([A-Za-z0-9+/=]+)["']\s*\)\s*\.decode\s*\(\s*\)\s*\)\s*\)\s*$/;
+const MINIFIED_LINE_REGEX = /^\s*(?:import\s+base64\s*;\s*)?exec\s*\(\s*['"](?:from\s+IPython\.core\.interactiveshell\s+import\s+InteractiveShell\s*;\s*from\s+sage\.repl\.preparse\s+import\s+preparse\s*;\s*)?InteractiveShell\.instance\s*\(\s*\)\s*\.\s*run_cell\s*\(\s*preparse\s*\(\s*base64\.b64decode\s*\(\s*["']([A-Za-z0-9+/=]+)["']\s*\)\s*\.decode\s*\(\s*\)\s*\)\s*\)\s*;\s*None['"]\s*\)\s*$/;
 
 // Encode any code (UTF-8 safe) to a single-line base64 exec() string.
 function encodeCodeToBase64Line(code) {
@@ -1914,7 +1914,7 @@ function encodeCodeToBase64Line(code) {
     let binary = '';
     utf8Bytes.forEach(b => binary += String.fromCharCode(b));
     const b64 = btoa(binary);
-    return `import base64;exec(preparse(base64.b64decode("${b64}").decode()))`;
+    return `import base64; exec('from IPython.core.interactiveshell import InteractiveShell; from sage.repl.preparse import preparse; InteractiveShell.instance().run_cell(preparse(base64.b64decode("${b64}").decode())); None')`;
 }
 
 // Decode a single minified line back to the original code. Returns null if not a match.
