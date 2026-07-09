@@ -45,7 +45,7 @@
 
 * Lightweight work on small or moderately demanding computational projects.
 * Educational purposes and hobbyist usage.
-* Publishing interactive SageMath computations on the web or some LMS platforms (e.g. LMS Canvas).
+* Publishing interactive SageMath computations on the web or LMS platforms.
 
 ***
 
