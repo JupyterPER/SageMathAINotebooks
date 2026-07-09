@@ -182,7 +182,7 @@ function saveHtml() {
         '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.css">\n' +
         '<script>let RUN_DELAY = '+ RUN_DELAY +';</script>\n' +
         '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/customthemes15.js"></script>\n' +  
-        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner19beta.js"></script>\n' +
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner19.js"></script>\n' +
         '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbaiengine17.js"></script>\n' +
         '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbaipriming13.js"></script>\n' +
         '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbautocompletion15.js"></script>\n' +
