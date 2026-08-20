@@ -45,6 +45,31 @@ function focusRelativeCodeMirror(currentCm, direction) {
           .scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
+function focusRelativeCodeMirrorNoWrap(currentCm, direction) {
+    const mirrors = getAllEditors();
+    const index = mirrors.indexOf(currentCm);
+
+    if (index === -1) return;
+
+    const targetIndex = index + direction;
+
+    // Do not wrap around when reaching either end.
+    if (targetIndex < 0 || targetIndex >= mirrors.length) {
+        return;
+    }
+
+    const target = mirrors[targetIndex];
+    target.focus();
+
+    // Position cursor at end of content for better UX
+    const lastLine = target.lastLine();
+    const lastChar = target.getLine(lastLine).length;
+    target.setCursor(lastLine, lastChar);
+
+    target.getWrapperElement()
+        .scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 function addNavigationKeys(cm) {
     if (cm.__hasNavKeys) return;
 
@@ -775,7 +800,7 @@ function enhanceSageCellsWithGlobalAutocomplete() {
         // Run current cell and move to next (Shift+Enter)
         "Shift-Enter": function(cm) {
             setTimeout(() => {
-                focusRelativeCodeMirror(cm, 1);
+                focusRelativeCodeMirrorNoWrap(cm, 1);
             }, 500);
         },
         
