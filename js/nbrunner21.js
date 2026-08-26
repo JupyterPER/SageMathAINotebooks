@@ -866,10 +866,11 @@ function addControlPanel() {
         // ---- Export section (former Export Format menu) ----
         popup.appendChild(makeSectionLabel('Export'));
         const exportButtons = [
-            makeOptionButton('IPYNB', downloadNotebookAsIPYNB),
+            makeOptionButton('IPYNB (with outputs)', () => downloadNotebookAsIPYNB(true)),
+            makeOptionButton('IPYNB (no outputs)',    () => downloadNotebookAsIPYNB(false)),
             makeOptionButton('TXT', downloadNotebookText),
             makeOptionButton('SAGE (code only)', downloadAllCodeAsSage),
-            makeOptionButton('SAGE (minified / base64)', downloadAllCodeAsMinifiedSage)
+            makeOptionButton('SAGE (code only, minified / base64)', downloadAllCodeAsMinifiedSage)
         ];
         exportButtons.forEach(btn => popup.appendChild(btn));
 
@@ -5019,13 +5020,15 @@ function toSourceLines(content) {
     return linesArr.map((line, idx) => idx < linesArr.length - 1 ? line + '\n' : line);
 }
 
-// Updated: Collect notebook content in IPYNB JSON format (no outputs, with proper newlines)
-function collectNotebookAsIPYNB() {
+// Collect notebook content in IPYNB JSON format.
+// includeOutputs = true  -> outputs are extracted from the live SageCell DOM
+async function collectNotebookAsIPYNB(includeOutputs = true) {
     const cells = document.querySelectorAll('.nb-cell');
     const ipynbCells = [];
     let codeCellCount = 1;
 
-    cells.forEach(cell => {
+    for (const cell of cells) {
+
         if (cell.classList.contains('nb-markdown-cell')) {
             let content = '';
             if (cell.cmEditor) {
@@ -5041,52 +5044,56 @@ function collectNotebookAsIPYNB() {
                 metadata: {},
                 source: toSourceLines(content)
             });
+
         } else if (cell.classList.contains('nb-code-cell')) {
             let codeContent = getCodeFromCell(cell, codeCellCount - 1);
-            // Remove "In[n]:" prefix if present
+            // strip the "In[n]:" prefix added by getCodeFromCell
             const codeLines = codeContent.split('\n');
             codeContent = (codeLines.length > 1 ? codeLines.slice(1) : codeLines).join('\n');
 
+            const execCount = codeCellCount++;
+            let outputs = [];
+            if (includeOutputs) {
+                try {
+                    outputs = await extractCellOutputsForIPYNB(cell, execCount);
+                } catch (err) {
+                    console.warn('IPYNB export: failed to extract outputs of cell', execCount, err);
+                    outputs = [];
+                }
+            }
+
             ipynbCells.push({
                 cell_type: 'code',
-                execution_count: codeCellCount++,
+                execution_count: outputs.length ? execCount : null,
                 metadata: {},
                 source: toSourceLines(codeContent),
-                outputs: []  // Explicitly empty; no outputs exported
+                outputs: outputs
             });
         }
-    });
-
-    // Handle empty notebook gracefully
-    if (ipynbCells.length === 0) {
-        console.warn('No cells found to export.');
     }
+
+    if (ipynbCells.length === 0) console.warn('No cells found to export.');
 
     return {
         cells: ipynbCells,
         metadata: {
-            kernelspec: {
-                display_name: 'SageMath',
-                language: 'sage',
-                name: 'sagemath'
-            },
-            language_info: {
-                name: 'sage'
-            }
+            kernelspec: { display_name: 'SageMath', language: 'sage', name: 'sagemath' },
+            language_info: { name: 'sage' }
         },
         nbformat: 4,
         nbformat_minor: 5
     };
 }
 
-// Export function (unchanged from previous, but uses simplified collector)
-function downloadNotebookAsIPYNB() {
+async function downloadNotebookAsIPYNB(includeOutputs = true) {
+    if (includeOutputs) showLoadingOverlay();   // image encoding can take a moment
     try {
-        const ipynbContent = collectNotebookAsIPYNB();
+        const ipynbContent = await collectNotebookAsIPYNB(includeOutputs);
         const jsonString = JSON.stringify(ipynbContent, null, 2);
 
         const extractedNameBase = extractFilenameBaseFromH1() || 'SageMath_notebook';
-        const finalFilename = `${extractedNameBase}_${getFormattedDate()}.ipynb`;
+        const suffix = includeOutputs ? '' : '_code_only';
+        const finalFilename = `${extractedNameBase}_${getFormattedDate()}${suffix}.ipynb`;
 
         const blob = new Blob([jsonString], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -5102,10 +5109,10 @@ function downloadNotebookAsIPYNB() {
     } catch (error) {
         console.error('Error exporting to IPYNB:', error);
         alert('Failed to export to Jupyter notebook. Check console for details.');
+    } finally {
+        hideLoadingOverlay();
     }
 }
-
-
 
 // Add to nbrunner6.js
 
@@ -5190,6 +5197,493 @@ function importFromIPYNB(file) {
 //         clickFirstEvalButton();
 //     }, 500);
 // });
+
+// ============================================================
+// MATHJAX  ->  nbformat
+// ============================================================
+
+const MATH_NODE_SELECTOR =
+    'mjx-container, .MathJax, .MathJax_Display, .MathJax_SVG, ' +
+    '.MathJax_SVG_Display, .MathJax_CHTML, .mjx-chtml';
+
+// Content that must NOT be swallowed into a math wrapper.
+function nbHasNonMathContent(el) {
+    if (el.querySelector('img, table, pre, iframe, canvas, ' +
+        '.sagecell_stdout, .sagecell_stderr, .sagecell_pyerr, .dataframe')) return true;
+    for (const s of el.querySelectorAll('svg')) {
+        if (!s.closest(MATH_NODE_SELECTOR)) return true;   // a plot, not glyphs
+    }
+    return false;
+}
+
+/**
+ * For every rendered math node, climb to the outermost element that still
+ * contains nothing but math + text. That element is the export unit, exactly
+ * like `container.closest('div')` in copyOutputToMarkdown().
+ */
+function nbFindMathWrappers(container) {
+    const wrappers = new Set();
+
+    container.querySelectorAll(MATH_NODE_SELECTOR).forEach(node => {
+        if (node.parentElement && node.parentElement.closest(MATH_NODE_SELECTOR)) return; // nested
+        let wrapper = node;
+        let parent = node.parentElement;
+        while (parent && parent !== container &&
+               !nbShouldSkip(parent) && !nbHasNonMathContent(parent)) {
+            wrapper = parent;
+            parent = parent.parentElement;
+        }
+        wrappers.add(wrapper);
+    });
+
+    // keep only the outermost wrappers
+    const result = new Set(wrappers);
+    wrappers.forEach(a => wrappers.forEach(b => {
+        if (a !== b && b.contains(a)) result.delete(a);
+    }));
+    return result;
+}
+
+function nbIsDisplayMath(node) {
+    if (node.getAttribute && node.getAttribute('display') === 'true') return true;
+    const cl = node.classList;
+    if (cl && (cl.contains('MathJax_Display') || cl.contains('MathJax_SVG_Display'))) return true;
+    const p = node.parentElement;
+    if (p && p.classList && p.classList.contains('MathJax_Display')) return true;
+    return false;
+}
+
+/** Recover the original TeX of one rendered math node. */
+function nbTexFromMathNode(node) {
+    // (a) MathJax 2: source kept in a sibling / inner <script type="math/tex">
+    let script = node.querySelector('script[type^="math/tex"]');
+    if (!script) {
+        let sib = node.nextSibling;
+        while (sib && sib.nodeType === 3 && !sib.textContent.trim()) sib = sib.nextSibling;
+        if (sib && sib.nodeType === 1 && sib.tagName === 'SCRIPT' &&
+            /^math\/tex/.test(sib.getAttribute('type') || '')) script = sib;
+    }
+    if (script && script.textContent.trim()) {
+        return {
+            tex: script.textContent.trim(),
+            display: /mode\s*=\s*display/.test(script.getAttribute('type') || ''),
+            source: script
+        };
+    }
+
+    // (b) MathJax 3: assistive MathML carries the TeX annotation
+    const ann = node.querySelector('annotation[encoding="application/x-tex"]');
+    if (ann && ann.textContent.trim()) {
+        return { tex: ann.textContent.trim(), display: nbIsDisplayMath(node), source: null };
+    }
+
+    // (c) some builds stash it in an attribute
+    for (const attr of ['data-original-tex', 'data-tex', 'data-latex']) {
+        const v = node.getAttribute && node.getAttribute(attr);
+        if (v && v.trim()) {
+            return { tex: v.trim(), display: nbIsDisplayMath(node), source: null };
+        }
+    }
+    return null;
+}
+
+/**
+ * Clone a math wrapper and turn the rendered MathJax back into raw TeX
+ * (or native MathML when no TeX is recoverable), so the resulting HTML is
+ * self-contained and Jupyter can typeset it itself.
+ */
+function nbConvertMathWrapper(wrapper) {
+    const host = document.createElement('div');
+    host.appendChild(wrapper.cloneNode(true));
+
+    host.querySelectorAll(
+        '.MathJax_Preview, .sagecell_spinner, .sagecell_evalButton, button, style, ' +
+        '.control-bar, .control-ai-bar, .bulk-select-wrapper, .sagecell-number'
+    ).forEach(n => n.remove());
+
+    const texs = [];
+    let complete = true;
+
+    Array.from(host.querySelectorAll(MATH_NODE_SELECTOR)).forEach(node => {
+        if (!host.contains(node)) return;                                  // gone with an ancestor
+        if (node.parentElement && node.parentElement.closest(MATH_NODE_SELECTOR)) return;
+
+        const info = nbTexFromMathNode(node);
+        if (info) {
+            texs.push(info);
+            const tex = nbMathTex(info);                       // \displaystyle prefix
+            if (info.source && host.contains(info.source)) info.source.remove();
+            node.replaceWith(document.createTextNode('\\(' + tex + '\\)'));   // always inline
+        } else {
+            // no TeX: fall back to native MathML (renders in Jupyter and in browsers)
+            const mml = node.querySelector('mjx-assistive-mml > math, math');
+            if (mml) node.replaceWith(mml.cloneNode(true));
+            else complete = false;                                          // keep as-is
+        }
+    });
+
+    // leftovers would render the math a second time
+    host.querySelectorAll('mjx-assistive-mml').forEach(n => n.remove());
+    host.querySelectorAll('script[type^="math/tex"]').forEach(n => n.remove());
+
+     // plain-text twin: Sage-style repr
+    let plain = (host.textContent || '')
+        .replace(/\\\((.*?)\\\)/gs, (m, t) => nbTexToPlain(t))
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+    // is the wrapper *pure* math (no prose around it)? -> text/latex is faithful
+    const bare = document.createElement('div');
+    bare.appendChild(wrapper.cloneNode(true));
+    Array.from(bare.querySelectorAll(MATH_NODE_SELECTOR)).forEach(n => n.remove());
+    bare.querySelectorAll('script[type^="math/tex"], .MathJax_Preview').forEach(n => n.remove());
+    const onlyMath = (bare.textContent || '').trim() === '';
+
+    return { html: host.innerHTML.trim(), plain, texs, complete, onlyMath };
+}
+
+function nbMathOutput(wrapper /* no executionCount: display_data has none */) {
+    const m = nbConvertMathWrapper(wrapper);
+    if (!m.html && !m.plain) return null;
+
+    const data = {};
+
+    // text/html first, exactly as Sage writes it
+    data['text/html'] = nbTextLines(nbWrapSageHtml(m.html));
+
+    // text/latex only when the wrapper is pure math and TeX was recovered
+    if (m.onlyMath && m.texs.length) {
+        data['text/latex'] = nbTextLines(
+            '$' + m.texs.map(nbMathTex).join(' ') + '$'
+        );
+    }
+
+    data['text/plain'] = nbTextLines(m.plain || '<math output>');
+
+    return {
+        data,
+        metadata: {},
+        output_type: 'display_data'
+    };
+}
+
+// Sage emits inline delimiters always; "display" is expressed as \displaystyle.
+function nbMathTex(info) {
+    const tex = info.tex.replace(/^\s*\\displaystyle\s*/, '');
+    return (info.display ? '\\displaystyle ' : '') + tex;
+}
+
+// Sage wraps text-only math output in <html>...</html>.
+function nbWrapSageHtml(inner) {
+    return /<[a-zA-Z!/]/.test(inner) ? inner : '<html>' + inner + '</html>';
+}
+
+/**
+ * Approximate Sage's plain repr from TeX. text/plain is only a fallback
+ * (every real frontend prefers text/html), so best-effort is fine.
+ */
+function nbTexToPlain(tex) {
+    let s = tex;
+    for (let i = 0; i < 6; i++) {
+        s = s.replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '($1)/($2)')
+             .replace(/\\sqrt\s*\{([^{}]*)\}/g, 'sqrt($1)')
+             .replace(/\\(?:mathit|mathrm|mathbf|text|operatorname)\s*\{([^{}]*)\}/g, '$1')
+             .replace(/\^\s*\{([^{}]*)\}/g, '^$1')
+             .replace(/_\s*\{([^{}]*)\}/g, '_$1');
+    }
+    return s
+        .replace(/\\displaystyle\s*/g, '')
+        .replace(/\\left\s*|\\right\s*/g, '')
+        .replace(/\\(?:cdot|times)\s*/g, '*')
+        .replace(/\\(?:mapsto|to|rightarrow)\s*/g, ' -> ')
+        .replace(/\\(?:leq|le)\s*/g, ' <= ').replace(/\\(?:geq|ge)\s*/g, ' >= ')
+        .replace(/\\neq\s*/g, ' != ')
+        .replace(/\\infty/g, 'Infinity').replace(/\\pi\b/g, 'pi')
+        .replace(/\\[,;:!]|\\quad|\\qquad/g, ' ')
+        .replace(/\\\\/g, '\n')
+        .replace(/\\[a-zA-Z]+\s*/g, m => m.trim().slice(1) + ' ') // \alpha -> alpha
+        .replace(/[{}$]/g, '')
+        .replace(/\(([A-Za-z0-9_.]+)\)/g, '$1')                    // undo cheap parens
+        .replace(/[ \t]{2,}/g, ' ')
+        .trim();
+}
+
+// ============================================================
+// IPYNB OUTPUT EXTRACTION (SageCell DOM  ->  nbformat outputs)
+// ============================================================
+
+// UI chrome that must never be treated as output
+const SAGE_OUTPUT_SKIP_CLASSES = [
+    'sagecell_spinner', 'sagecell_evalButton', 'sagecell_poweredBy',
+    'sagecell_permalink', 'sagecell_sessionFiles', 'sagecell_messages',
+    'sagecell_templates', 'sagecell_interactControls', 'sagecell_icon',
+    'sagecell-number', 'control-bar', 'control-ai-bar', 'bulk-select-wrapper'
+];
+
+// nbformat wants a list of lines, each ending with '\n' except the last one.
+function nbTextLines(text) {
+    text = String(text == null ? '' : text)
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+    const parts = text.split('\n');
+    const lines = parts.map((l, i) => (i < parts.length - 1 ? l + '\n' : l));
+    // a trailing '\n' produces an empty last element -> drop it
+    if (lines.length && lines[lines.length - 1] === '') lines.pop();
+    return lines;
+}
+
+function nbShouldSkip(el) {
+    if (!el || el.nodeType !== 1) return true;
+    if (el.tagName === 'STYLE' || el.tagName === 'BUTTON') return true;
+    for (const c of SAGE_OUTPUT_SKIP_CLASSES) {
+        if (el.classList && el.classList.contains(c)) return true;
+    }
+    return false;
+}
+
+/**
+ * Walk the SageCell output container and return an ORDERED list of
+ * {kind, el} descriptors. Order matters so the .ipynb looks like the notebook.
+ */
+function nbCollectOutputNodes(container) {
+    const items = [];
+    const mathWrappers = nbFindMathWrappers(container);   // NEW
+
+    function visit(node) {
+        if (node.nodeType !== 1) return;
+        const el = node;
+        if (nbShouldSkip(el)) return;
+
+        // NEW: a math wrapper is exported as one unit — never descend into it
+        if (mathWrappers.has(el)) { items.push({ kind: 'math', el }); return; }
+
+        const cls = el.classList;
+        const tag = el.tagName;
+
+        if (cls.contains('sagecell_pyerr'))  { items.push({ kind: 'error',  el }); return; }
+        if (cls.contains('sagecell_stderr')) { items.push({ kind: 'stderr', el }); return; }
+        if (cls.contains('sagecell_stdout')) { items.push({ kind: 'stdout', el }); return; }
+
+        if (tag === 'IMG')    { items.push({ kind: 'image', el }); return; }
+        if (tag === 'svg' || tag === 'SVG') { items.push({ kind: 'svg', el }); return; }
+        if (tag === 'SCRIPT') return;                       // math/tex handled inside wrappers
+        if (tag === 'TABLE')  { items.push({ kind: 'html', el }); return; }
+        if (tag === 'PRE')    { items.push({ kind: 'text', el }); return; }
+        if (tag === 'IFRAME' || tag === 'CANVAS') { items.push({ kind: 'unsupported', el }); return; }
+
+        Array.from(el.childNodes).forEach(visit);
+    }
+
+    Array.from(container.childNodes).forEach(visit);
+    return items;
+}
+
+/** Turn an image URL (http(s) or data:) into { mime, base64 }. */
+async function nbImageToBase64(src) {
+    if (!src) return null;
+
+    // data: URI -> use directly
+    const dm = String(src).match(/^data:([^;,]+)?(;base64)?,(.*)$/i);
+    if (dm) {
+        const mime = dm[1] || 'image/png';
+        if (dm[2]) return { mime, base64: dm[3] };
+        try {
+            const raw = decodeURIComponent(dm[3]);
+            return { mime, base64: btoa(unescape(encodeURIComponent(raw))) };
+        } catch (e) { return null; }
+    }
+
+    // 1) fetch (SageCell servers normally send permissive CORS headers)
+    try {
+        const res = await fetch(src, { cache: 'force-cache' });
+        if (res.ok) {
+            const blob = await res.blob();
+            const dataUrl = await new Promise((resolve, reject) => {
+                const r = new FileReader();
+                r.onloadend = () => resolve(r.result);
+                r.onerror = reject;
+                r.readAsDataURL(blob);
+            });
+            const m = String(dataUrl).match(/^data:([^;]+);base64,(.*)$/);
+            if (m) return { mime: m[1] || blob.type || 'image/png', base64: m[2] };
+        }
+    } catch (e) {
+        console.warn('IPYNB export: fetch failed for image, trying canvas:', src, e);
+    }
+
+    // 2) canvas fallback (reuses your existing helper)
+    try {
+        const dataUrl = await convertImageToBase64(src);
+        const m = String(dataUrl).match(/^data:([^;]+);base64,(.*)$/);
+        if (m) return { mime: m[1], base64: m[2] };
+    } catch (e) {
+        console.warn('IPYNB export: canvas failed for image:', src, e);
+    }
+
+    return null;
+}
+
+/** Build an nbformat "error" output from a .sagecell_pyerr element. */
+function nbErrorOutput(el) {
+    const text = String(el.textContent || '').replace(/\s+$/, '');
+    const lines = text.split('\n');
+    const lastMeaningful = [...lines].reverse().find(l => l.trim() !== '') || '';
+    const m = lastMeaningful.match(
+        /^\s*([A-Za-z_][\w.]*(?:Error|Exception|Interrupt|Exit|Warning|Halt))\s*:?\s*([\s\S]*)$/
+    );
+    return {
+        output_type: 'error',
+        ename: m ? m[1] : 'Error',
+        evalue: m ? m[2].trim() : lastMeaningful.trim(),
+        traceback: lines
+    };
+}
+
+/**
+ * Extract all outputs of one .nb-code-cell as an array of nbformat outputs.
+ * Async because images have to be downloaded / re-encoded.
+ */
+async function extractCellOutputsForIPYNB(cell, executionCount) {
+    const outputs = [];
+    const container = cell.querySelector('.sagecell_sessionOutput')
+                   || cell.querySelector('.sagecell_output');
+    if (!container) return outputs;
+
+    const items = nbCollectOutputNodes(container);
+    const seenImages = new Set();
+    const seenText = new Set();
+
+    for (const item of items) {
+        const el = item.el;
+
+        switch (item.kind) {
+
+            case 'error':
+                outputs.push(nbErrorOutput(el));
+                break;
+
+            case 'stdout':
+            case 'stderr': {
+                const txt = el.textContent || '';
+                if (!txt.trim()) break;
+                outputs.push({
+                    output_type: 'stream',
+                    name: item.kind === 'stderr' ? 'stderr' : 'stdout',
+                    text: nbTextLines(txt)
+                });
+                break;
+            }
+
+            case 'text': {
+                const txt = (el.textContent || '').trim();
+                if (!txt) break;
+                const key = 'pre:' + txt;
+                if (seenText.has(key)) break;
+                seenText.add(key);
+                outputs.push({
+                    output_type: 'execute_result',
+                    execution_count: executionCount,
+                    data: { 'text/plain': nbTextLines(txt) },
+                    metadata: {}
+                });
+                break;
+            }
+
+            case 'html': {
+                const html = el.outerHTML;
+                const key = 'html:' + html.length + ':' + (el.textContent || '').slice(0, 80);
+                if (seenText.has(key)) break;
+                seenText.add(key);
+                outputs.push({
+                    output_type: 'execute_result',
+                    execution_count: executionCount,
+                    data: {
+                        'text/html': nbTextLines(html),
+                        'text/plain': nbTextLines((el.textContent || '').trim())
+                    },
+                    metadata: {}
+                });
+                break;
+            }
+
+            case 'math': {
+                const out = nbMathOutput(el);
+                if (!out) break;
+                const sig = 'math:' + out.data['text/html'].join('');
+                if (seenText.has(sig)) break;
+                seenText.add(sig);
+                outputs.push(out);
+                break;
+            }
+
+            case 'svg': {
+                outputs.push({
+                    output_type: 'display_data',
+                    data: {
+                        'image/svg+xml': nbTextLines(el.outerHTML),
+                        'text/plain': ['<svg image>']
+                    },
+                    metadata: {}
+                });
+                break;
+            }
+
+            case 'image': {
+                const src = el.src;
+                if (!src || seenImages.has(src)) break;
+                seenImages.add(src);
+
+                const img = await nbImageToBase64(src);
+                if (!img) {
+                    // Could not embed -> keep at least a reference, never lose info
+                    outputs.push({
+                        output_type: 'display_data',
+                        data: {
+                            'text/html': nbTextLines('<img src="' + src + '">'),
+                            'text/plain': nbTextLines('<image: ' + src + '>')
+                        },
+                        metadata: {}
+                    });
+                    break;
+                }
+
+                const data = {};
+                if (/svg/i.test(img.mime)) {
+                    let svgText = '';
+                    try { svgText = decodeURIComponent(escape(atob(img.base64))); } catch (e) {}
+                    data['image/svg+xml'] = nbTextLines(svgText);
+                } else {
+                    // nbformat: base64 payload WITHOUT the data: prefix
+                    data[/jpe?g/i.test(img.mime) ? 'image/jpeg' : 'image/png'] = img.base64;
+                }
+                data['text/plain'] = ['<image>'];
+
+                const meta = {};
+                if (el.naturalWidth)  meta.width  = el.naturalWidth;
+                if (el.naturalHeight) meta.height = el.naturalHeight;
+
+                outputs.push({
+                    output_type: 'display_data',
+                    data,
+                    metadata: Object.keys(meta).length ? { image: meta } : {}
+                });
+                break;
+            }
+
+            case 'unsupported':
+                outputs.push({
+                    output_type: 'display_data',
+                    data: { 'text/plain': ['<interactive / 3D output — not exportable to .ipynb>'] },
+                    metadata: {}
+                });
+                break;
+        }
+    }
+
+    return outputs;
+}
 
 // Function to split a cell at the cursor position (works for both code and markdown cells)
 function splitCellAtCursor(cell) {
