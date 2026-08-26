@@ -386,16 +386,14 @@ function createAiSettingsModal() {
             <input type="url" id="apiUrlInput" value="${esc(currentApiUrl)}"
                    placeholder="https://api.example.com/v1/chat/completions">
             <select id="providerSelect" onchange="if(this.value) setApiPreset(this.value)" style="margin-top:8px;">
-                <option value="">— Select a provider to autofill URL &amp; model —</option>
+				<option value="">— Select a provider to autofill URL —</option>
+                <option value="openrouter">OpenRouter</option>
                 <option value="openai">OpenAI</option>
                 <option value="mistral">Mistral</option>
-                <option value="anthropic">Anthropic</option>
-                <option value="deepseek">DeepSeek</option>
                 <option value="poe">Poe</option>
-                <option value="openrouter">OpenRouter</option>
-                <option value="groq">Groq</option>
-                <option value="cerebras">Cerebras</option>
-                <option value="github">GitHub</option>
+                <option value="moonshotai">Moonshot AI</option>
+                <option value="qwencloud">Qwen Cloud</option>
+                <option value="deepseek">DeepSeek</option>
             </select>
             <p>Enter the API endpoint URL for your AI service.</p>
         </div>
@@ -657,49 +655,56 @@ function updateAiSettings() {
     alert("Settings updated successfully!");
 }
 
-
-
 function setApiPreset(provider) {
     const apiUrlInput = document.getElementById('apiUrlInput');
     const modelInput = document.getElementById('modelInput');
 
     const presets = {
+        openrouter: {
+            url: 'https://openrouter.ai/api/v1/chat/completions',
+            model: 'minimax/minimax-m3:free' 
+        },
+        
         openai: {
             url: 'https://api.openai.com/v1/chat/completions',
-            model: 'gpt-5-mini' 
+            model: 'gpt-5.6-terra' 
         },
         mistral: {
             url: 'https://api.mistral.ai/v1/chat/completions',
             model: 'mistral-medium-latest'
         },
-        anthropic: {
-            url: 'https://api.anthropic.com/v1/messages',
-            model: 'claude-3-sonnet-20240229'
-        },
         poe: {
             url: 'https://api.poe.com/v1/chat/completions',
-            model: 'Assistant'
+            model: 'Qwen3.7-Plus'
         },
-        openrouter: {
-            url: 'https://openrouter.ai/api/v1/chat/completions',
-            model: 'openai/gpt-oss-120b' 
-        },
-        groq: {
-            url: 'https://api.groq.com/openai/v1/chat/completions',
-            model: 'openai/gpt-oss-120b' 
-        },
-        cerebras: {
-            url: 'https://api.cerebras.ai/v1/chat/completions',
-            model: 'gpt-oss-120b'
-        },
-        github: {
-            url: 'https://models.github.ai/inference/chat/completions',
-            model: 'openai/gpt-5-mini' 
-        },
+        // anthropic: {
+        //     url: 'https://api.anthropic.com/v1/messages',
+        //     model: 'claude-3-sonnet-20240229'
+        // },
+        // groq: {
+        //     url: 'https://api.groq.com/openai/v1/chat/completions',
+        //     model: 'openai/gpt-oss-120b' 
+        // },
+        // github: {
+        //     url: 'https://models.github.ai/inference/chat/completions',
+        //     model: 'openai/gpt-5-mini' 
+        // },
         deepseek: {
             url: 'https://api.deepseek.com/v1/chat/completions',
-            model: 'deepseek-chat'
-        }
+            model: 'deepseek-v4-flash'
+        },
+        moonshotai: {
+            url: 'https://api.moonshot.ai/v1/chat/completions',
+            model: 'kimi-k2.5'
+        },
+        qwencloud: {
+            url: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions',
+            model: 'qwen3.7-plus'
+        },
+        // cerebras: {
+        //     url: 'https://api.cerebras.ai/v1/chat/completions',
+        //     model: 'gpt-oss-120b'
+        // },
     };
 
     if (presets[provider]) {
