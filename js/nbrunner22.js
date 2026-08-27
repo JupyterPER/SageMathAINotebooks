@@ -1,0 +1,7197 @@
+function getBrowserLanguage() {
+    return (navigator.language || navigator.userLanguage).substring(0, 2)
+}
+
+
+// Hide body immediately when script loads
+(function() {
+    const style = document.createElement('style');
+    style.id = 'loading-screen-style';
+    style.textContent = `
+        body:not(.notebook-ready) {
+            visibility: hidden !important;
+            opacity: 0 !important;
+        }
+        body.notebook-ready {
+            visibility: visible !important;
+            opacity: 1 !important;
+            transition: opacity 0.3s ease-in-out;
+        }
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            transition: opacity 0.3s ease-out;
+        }
+        #loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--main-color, #4CAF50);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(style);
+})();
+
+
+// Add these helper functions near the top of your file (after the initial hiding code)
+
+function showLoadingOverlay() {
+    // Check if overlay already exists
+    let overlay = document.getElementById('loading-overlay');
+    
+    if (!overlay) {
+        // Create overlay if it doesn't exist
+        overlay = document.createElement('div');
+        overlay.id = 'loading-overlay';
+        overlay.innerHTML = '<div class="loading-spinner"></div>';
+        document.body.prepend(overlay);
+    }
+    
+    // Show the overlay
+    overlay.classList.remove('hidden');
+}
+
+function hideLoadingOverlay() {
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) {
+        overlay.classList.add('hidden');
+        // Optional: remove after animation
+        setTimeout(() => {
+            if (overlay.classList.contains('hidden')) {
+                overlay.remove();
+            }
+        }, 100);
+    }
+}
+// Reveal the page when fully loaded
+// window.addEventListener('load', function() {
+//     setTimeout(() => {
+//         document.body.classList.add('notebook-ready');
+//         hideLoadingOverlay();
+//     }, 500);
+// });
+
+function makeMenu() {
+    var e = getBrowserLanguage();
+    $("head").first().append('<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer18.css"'), $("body").first().append('<script src="custom.js"><\/script>');
+    var t = "de" == e ? "Code ausblenden/einblenden" : "Show / Hide Code",
+        n = "de" == e ? "Code-Zellen in der gegebenen Reihenfolge ausfĂĽhren!" : "Execute Cells in the Sequence Given!",
+        a = "de" == e ? "Speichern" : "Save (Ctrl+S)",
+        s = '<a href="#" role="button" id="read-button" class="btn btn-primary" onclick="setView()">' + ("de" == e ? 'Lesen' : 'Read') + '</a>',
+        o = '<a href="#" role="button" id="execute-button" class="btn btn-primary" onclick="setExecute()">' + ('de' == e ? 'AusfĂĽhren' : '▶ Run') + '</a>',
+        l = '<div id="navbar">' + ('Exec' == playerConfig.panes ? "" : s + o) + '<a href="#" role="button" class="btn btn-primary" onclick="saveHtml()" title="Save (Ctrl+S)">' + iconDictionaryNavbar["saveNotebook"] + "</a>" + '\n  </div>';
+    $("body").prepend(l), $("#main").addClass("belowMenu")
+}
+
+function scrollFunction() {
+    var e = document.getElementById("navbar"),
+        t = e.offsetTop;
+    window.pageYOffset >= t ? e.classList.add("sticky") : e.classList.remove("sticky")
+}
+
+function saveHtml() {
+    removeEmptyMarkdownCellsBeforeSaving();
+    removeTableOfContents();
+    simplifyMarkdownCellsForSaving();
+    removeAllControlBars();
+    removeSageCellNumbering();
+    
+    // Remove SageCell artifacts
+    document.querySelectorAll('.sagecell-templates').forEach(el => el.remove());
+    document.querySelectorAll('.sagecell_messages').forEach(el => el.remove());
+    
+    // Also remove any remaining sagecell output/input elements
+    document.querySelectorAll('.sagecell_output').forEach(el => el.remove());
+    document.querySelectorAll('.sagecell_evalButton').forEach(el => el.remove());
+    document.querySelectorAll('.sagecell_poweredBy').forEach(el => el.remove());
+    document.querySelectorAll('.sagecell_sessionFiles').forEach(el => el.remove());
+    document.querySelectorAll('.sagecell_permalink').forEach(el => el.remove());
+    
+    // Remove loading overlay if present
+    document.querySelectorAll('#loading-overlay').forEach(el => el.remove());
+    document.querySelectorAll('#custom-user-css').forEach(el => el.remove());
+    document.querySelectorAll('#loading-screen-style').forEach(el => el.remove());
+    
+    saveAddSageCells(".nb-code-cell")
+    
+    // Better handling of zero-width characters in scripts
+    document.querySelectorAll('script').forEach(script => {
+        if (script.innerHTML) {
+            script.innerHTML = script.innerHTML.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+        }
+    });
+
+    PRELOAD = buildPreloadString();
+
+    const apikey = typeof API_KEY !== 'undefined' ? JSON.stringify(API_KEY) : JSON.stringify('');
+    const currentmodel = typeof CURRENT_MODEL !== 'undefined' ? JSON.stringify(CURRENT_MODEL) : JSON.stringify('');
+    const currentlanguage = typeof CURRENT_LANGUAGE !== 'undefined' ? JSON.stringify(CURRENT_LANGUAGE) : JSON.stringify('');
+    const currentApiUrl = typeof API_URL !== 'undefined' ? JSON.stringify(API_URL) : JSON.stringify('');
+    const currentCustomContext = typeof CUSTOM_CONTEXT !== 'undefined' ? JSON.stringify(CUSTOM_CONTEXT) : JSON.stringify('');
+    const currentCustomCSS = typeof CUSTOM_CSS !== 'undefined' ? JSON.stringify(CUSTOM_CSS) : JSON.stringify('');
+    const preloadedCode = JSON.stringify(typeof PRELOAD !== 'undefined' ? PRELOAD : '');
+
+    // Path/filename to the external settings.js
+    if (typeof SETTINGS_PATH_NAME === 'undefined') {
+        var SETTINGS_PATH_NAME = 'settings.js';
+    }
+
+    const extractedName = extractFilenameBaseFromH1();
+    const filenameBase = extractedName || playerConfig.name;
+
+    // Extract only the essential styles from <head>
+    const cleanHead = getCleanHead();
+
+    const htmlContent = "<!DOCTYPE html>\n<html>\n<head>" +
+        cleanHead +
+        '</head>\n<body>\n' +
+        '<script src="https://cdn.jsdelivr.net/npm/texme@1.2.2"></script>\n' +
+        '<div id="main">' + $("#main").html() + '</div>\n' +
+        '<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW" crossorigin="anonymous"></script>\n' +
+        '<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>\n' +
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/embedded_sagecell_backup.js"></script>\n' +
+        '<script src="' + SAGECELL_URL + 'embedded_sagecell.js"></script>\n' +
+        '<script src="' + playerConfig.playerPath + '/vendor/js/FileSaver.min.js"></script>\n' +
+        '<script src="' + playerConfig.playerPath + '/nbplayerConfig.js"></script>\n' +
+        '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldcode.min.js"></script>\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.js"></script>\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/comment/comment.min.js"></script>\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/markdown-fold.min.js"></script>\n' +
+        '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.css">\n' +
+        '<script>let RUN_DELAY = '+ RUN_DELAY +';</script>\n' +
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/customthemes15.js"></script>\n' +  
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbrunner21.js"></script>\n' +
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbaiengine21.js"></script>\n' +
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbaipriming13.js"></script>\n' +
+        '<script src="https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/js/nbautocompletion20.js"></script>\n' +
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>\n' +
+        '<script src="https://code.datagridxl.com/datagridxl2.js"></script>\n' +
+        '<script src="https://cdn.jsdelivr.net/npm/fflate@0.8.3/umd/index.min.js"></script>\n' +
+        '<script>\n' +
+        '  playerConfig=' + JSON.stringify(playerConfig) + ';\n' +
+        '  playerMode=' + JSON.stringify(playerMode) + ';\n' +
+        '  let API_KEY=' + apikey + ';\n' +
+        '  let API_URL=' + currentApiUrl + ';\n' +
+        '  let CURRENT_MODEL=' + currentmodel + ';\n' +
+        '  let CURRENT_LANGUAGE=' + currentlanguage + ';\n' +
+        '  let SAGECELL_URL=' + JSON.stringify(SAGECELL_URL) + ';\n' +
+        '  let toggleEvalBtnsState=' + JSON.stringify(toggleEvalBtnsState)+ ';\n' +
+        '  let isFullWidthState=' + JSON.stringify(isFullWidthState)+ ';\n' +
+        '  window.hideCodeInputState=' + JSON.stringify(!!window.hideCodeInputState) + ';\n' +
+        '  let PRELOAD=' + preloadedCode+ ';\n' +
+        '  let SETTINGS_PATH_NAME=' + JSON.stringify(SETTINGS_PATH_NAME) + ';\n' +
+        '  let aiEduMode=' + JSON.stringify(aiEduMode)+ ';\n' +
+        '  let aiCompleteMode=' + JSON.stringify(aiCompleteMode)+ ';\n' +
+        '  makeMenu();\n' +
+        '  localize();\n' +
+        '  createTableOfContents();\n' +
+        '  loadStatus();\n' +
+        '  restoreUIState();\n' +
+        '  makeSageCells(playerConfig);\n' +
+        '  launchPlayer();\n' +
+        '  addControlPanel();\n' +
+        '  setupRunAllCells();\n' +
+        '  addSageCellNumbering();\n' +
+        '  enhanceSageCellsWithGlobalAutocomplete();\n' +
+        '  window.onload = initializeMarkdownCells;\n' +
+        '  let CUSTOM_CONTEXT=' + currentCustomContext + ';\n' +
+        '  let CUSTOM_CSS=' + currentCustomCSS + ';\n' +
+        '  if (CUSTOM_CSS) applyCustomCSS(CUSTOM_CSS);\n' +
+        '  addCommentShortcutToAllSageCells();\n' +
+        '  applyPreloadCells();\n' +
+        '  setupBulkCellObserver();\n' +
+        '</script>\n' +
+        ((typeof SETTINGS_PATH_NAME !== 'undefined' && SETTINGS_PATH_NAME)
+        ? '<script src="' + SETTINGS_PATH_NAME + '"></script>\n'
+        : '') +
+        '</body>\n</html>';
+    
+    var e = new Blob([htmlContent], {
+        type: "text/html;charset=utf-8"
+    });
+    
+    saveAs(e, filenameBase + ".html");
+    
+    let t = "Do NOT use this page anymore - open your saved copy or reload this page.";
+    if (getBrowserLanguage() == "de") {
+        t = "Bitte die Seite neu laden oder die gespeicherte Kopie öffnen.";
+    }
+    $("#navbar").html('<div class="save-warning">' + t + "</div>");
+}
+
+function getCleanHead() {
+    let cleanHead = '';
+    
+    // Keep meta tags (charset, viewport, etc.)
+    document.querySelectorAll('head meta').forEach(meta => {
+        cleanHead += meta.outerHTML + '\n';
+    });
+    
+    // Keep the title
+    const title = document.querySelector('head title');
+    if (title) {
+        cleanHead += title.outerHTML + '\n';
+    }
+    
+    // Keep favicon if present
+    document.querySelectorAll('head link[rel="icon"], head link[rel="shortcut icon"]').forEach(link => {
+        cleanHead += link.outerHTML + '\n';
+    });
+    
+    // Keep essential external scripts (by src URL patterns)
+    const keepScriptPatterns = [
+        'mathjax',
+        'es5-shim',
+        'marked.min.js',
+        'purify.min.js',
+        'ansi_up.min.js',
+        'prism.min.js',
+        'katex.min.js',
+        'katex-auto-render.min.js',
+        'notebook.min.js',
+        'nbplayer/vendor'
+    ];
+    
+    document.querySelectorAll('head script[src]').forEach(script => {
+        const src = script.getAttribute('src') || '';
+        if (keepScriptPatterns.some(pattern => src.includes(pattern))) {
+            cleanHead += script.outerHTML + '\n';
+        }
+    });
+    
+    // Keep essential stylesheets (by href URL patterns)
+     const keepLinkPatterns = [
+        'bootstrap',
+        'katex',
+        'prism',
+        'notebook.css',
+        'nbpreview.css',
+        'nbplayer',
+        'custom.css'
+    ];
+    
+    document.querySelectorAll('head link[rel="stylesheet"]').forEach(link => {
+        const href = link.getAttribute('href') || '';
+        if (keepLinkPatterns.some(pattern => href.includes(pattern))) {
+            cleanHead += link.outerHTML + '\n';
+        }
+    });
+    
+    return cleanHead;
+}
+
+// function makeSageCells(e) {
+//     sagecell.makeSagecell({
+//         inputLocation: "div.compute",
+//         languages: [e.lang],
+//         evalButtonText: "de" == getBrowserLanguage() ? "AusfĂĽhren" : "Execute",
+//         linked: e.linked,
+//         autoeval: e.eval,
+//         hide: e.hide
+//     })
+// }
+
+function saveAddSageCells(selector) {
+  const savedCells = [];
+
+  $(selector).each(function () {
+    const $cell = $(this);
+
+    // Get the code before removing the live SageCell editor.
+    const sageCode = (getSageInput($cell) || "")
+      .replace(/\u200B/g, "");
+
+    // Original cleanup behavior:
+    // remove the SageCell editor UI and output.
+    $cell.find(".sagecell_input, .sagecell_output").remove();
+
+    // Remove anything left in the code cell, including prior saved
+    // .compute cells, so repeated saves cannot create duplicates.
+    $cell.empty();
+
+    // Add exactly one clean, hidden Sage compute cell.
+    const $compute = $("<div>", {
+      class: "compute"
+    }).css("display", "none");
+
+    const $script = $("<script>", {
+      type: "text/x-sage"
+    }).text(sageCode);
+
+    $compute.append($script);
+    $cell.append($compute);
+
+    // Readable saved representation, containing code cells only.
+    // Keep the code directly inside <script> so Sage/Python indentation
+    // is not accidentally changed.
+    savedCells.push(
+`<div class="nb-cell nb-code-cell">
+  <div class="compute" style="display: none;">
+    <script type="text/x-sage">${sageCode}</script>
+  </div>
+</div>`
+    );
+  });
+
+  return savedCells.join("\n\n");
+}
+
+window.onscroll = function() {
+    scrollFunction()
+};
+
+// let playerConfig = {
+//         panes: "ExecRead",
+//         lang: "sage",
+//         linked: !0,
+//         eval: !1,
+//         hide: ["fullScreen", "powered"],
+//         execute: !0,
+//         showRead: !0,
+//         collapsable: !1,
+//         playerPath: playerPath
+//     },
+
+let cellInput = ".nb-input";
+let cellOutput = ".nb-output";
+let codeCell = ".nb-code-cell";
+
+function getSageInput(e) {
+    let t = "";
+    return e.find(".CodeMirror-line").each((function() {
+        t += $(this).text() + "\n"
+    })), t
+}
+let playerMode = {
+    showSage: !1,
+    showNotebookInput: !0,
+    showSageInput: !0
+};
+
+function launchPlayer() {
+    playerMode.showSage ? setExecute() : setView()
+}
+
+function setView() {
+    $(".compute").hide(), playerMode.showNotebookInput && $(cellInput).show(), $(cellOutput).show(), playerMode.showSage = !1, $("#evalWarning").hide()
+}
+
+
+
+function setExecute() {
+    $(cellInput).hide(), $(cellOutput).hide(), $(".compute").show(), playerMode.showSageInput || $(".compute .sagecell_input").hide(), playerMode.showSage = !0, $("#evalWarning").show()
+}
+
+function toggleInput() {
+    playerMode.showSage ? ($(".compute .sagecell_input").toggle(), playerMode.showSageInput = !playerMode.showSageInput) : ($(cellInput).toggle(), playerMode.showNotebookInput = !playerMode.showNotebookInput)
+}
+
+function makeTransferData() {
+    $(".nbdataIn,.nbdataOut").parents(".nb-cell").each((function() {
+        let e = $(this);
+        e.before('<div class="transferData"></div>');
+        let t = e.prev(),
+            n = e.next();
+        e.appendTo(t), n.appendTo(t);
+        if (t.find(".nbdataOut").length) {
+            t.attr("id", "transferDataOut");
+            getBrowserLanguage();
+            if (t.append('<br/><p><input type="button" role="button" class="btn btn-primary status2Clipboard" onclick="status2ClipBoard()" value="Copy status to clipboard" /></p>'), t.append('<p><input type="button" role="button" class="btn btn-primary status2Storage" onclick="status2Storage()" value="Save status" /></p>'), t.find(".successor").length) {
+                t.find("ul").children("a").remove(), t.append('<p id="contMsg">Continue reading:</p>'), t.append("<ul></ul>");
+                let e = t.children().last();
+                t.find(".successor").each((function() {
+                    let t = $(this).find("a").first().attr("href");
+                    t = t.replace("ipynb", "html"), $(this).find("a").attr("href", t), $(this).appendTo(e), $(this).append(' <input type="button" role="button" class="btn btn-primary openWithStatus" onclick="openWithStatus(\'' + t + '?status=true\')" value="Open with current status" />')
+                }))
+            }
+        } else t.attr("id", "transferDataIn")
+    }))
+}
+const copyToClipboard = e => {
+    const t = document.createElement("textarea");
+    t.value = e, t.setAttribute("readonly", ""), t.style.position = "absolute", t.style.left = "-9999px", document.body.appendChild(t);
+    const n = document.getSelection().rangeCount > 0 && document.getSelection().getRangeAt(0);
+    t.select(), document.execCommand("copy"), document.body.removeChild(t), n && (document.getSelection().removeAllRanges(), document.getSelection().addRange(n))
+};
+
+function getStatus() {
+    return $("#transferDataOut .sagecell_stdout").first().text()
+}
+
+function openWithStatus(e) {
+    let t = getStatus();
+    if (t.length) localStorage.setItem("mtStatus", t), window.open(e, "_blank");
+    else {
+        let e = "";
+        e = "de" == getBrowserLanguage() ? "Fehler: Die Statusberechnung wurde noch nicht ausgefĂĽhrt" : "Error: Status cell not yet executed", alert(e)
+    }
+}
+
+function status2ClipBoard() {
+    let e = getStatus(),
+        t = getBrowserLanguage(),
+        n = "";
+    e.length ? (n = "de" == t ? "Status in die Zwischenablage kopiert" : "Status copied to clipboard", copyToClipboard(e), alert(n)) : (n = "de" == t ? "Fehler: Die Statusberechnung wurde noch nicht ausgefĂĽhrt" : "Error: Status cell not yet executed", alert(n))
+}
+
+function status2Storage() {
+    let e = GetURLParameterWithDefault("status", !1);
+    e && "true" != e.toString() || (e = "mtStatus"), "true" == e.toString() && (e = "mtStatus");
+    let t = getStatus(),
+        n = getBrowserLanguage(),
+        a = "";
+    t.length ? (localStorage.setItem(e, t), a = "de" == n ? "Status gespeichert" : "Status saved", alert(a)) : (a = "de" == n ? "Fehler: Die Statusberechnung wurde noch nicht ausgefĂĽhrt" : "Error: Status cell not yet executed", alert(a))
+}
+
+function GetURLParameterWithDefault(e, t) {
+    for (var n = window.location.search.substring(1).split("&"), a = 0; a < n.length; a++) {
+        var s = n[a].split("=");
+        if (s[0] == e) return decodeURIComponent(s[1])
+    }
+    return t
+}
+
+function loadStatus() {
+    let e = GetURLParameterWithDefault("status", !1);
+    if (e) {
+        "true" == e.toString() && (e = "mtStatus");
+        let t = localStorage.getItem(e);
+        t && $(".transferData").each((function() {
+            let e = $(this);
+            e.find(".nbdataIn").length && e.find(".nb-code-cell script").html(t + '\nprint("Status restored")')
+        }))
+    }
+}
+
+function localize() {
+    let e = {
+            ".status2Clipboard": {
+                type: "value",
+                de: "Status  in die Zwischenablage kopieren",
+                en: "Copy status to clipboard"
+            },
+            ".loadStatus": {
+                type: "value",
+                de: "Status laden",
+                en: "Load status"
+            },
+            ".status2Storage": {
+                type: "value",
+                de: "Status speichern",
+                en: "Save status"
+            },
+            "#contMsg": {
+                type: "html",
+                de: "Weiterlesen:",
+                en: "Continue reading:"
+            },
+            ".openWithStatus": {
+                type: "value",
+                de: "Mit aktuellem Status Ă¶ffnen",
+                en: "Open with current status"
+            }
+        },
+        t = getBrowserLanguage(),
+        n = Object.keys(e);
+    for (let a = 0; a < n.length; a++) {
+        let s = n[a];
+        e[s][t] && ("html" == e[s].type ? $(s).html(e[s][t]) : $(s).attr(e[s].type, e[s][t]))
+    }
+}
+
+
+function applyCustomCSS(css) {
+    CUSTOM_CSS = css;
+    let styleEl = document.getElementById('custom-user-css');
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'custom-user-css';
+        document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = css;
+}
+
+
+function setupRunAllCells() {
+    function runAllCells() {
+        const delay = Number.isFinite(Number(RUN_DELAY)) && Number(RUN_DELAY) > 0
+            ? Number(RUN_DELAY)
+            : 900;
+        const executeButtons = document.querySelectorAll('.sagecell_evalButton.ui-button.ui-corner-all.ui-widget');
+
+        // Filter out buttons from cells containing AI marker
+        const validButtons = Array.from(executeButtons).filter(button => {
+            const cell = button.closest('.nb-code-cell');
+            if (!cell) return true; // If not in a code cell, include it
+
+            // Check if the cell contains the AI marker
+            const cmEditor = cell.querySelector('.CodeMirror');
+            if (cmEditor && cmEditor.CodeMirror) {
+                const code = cmEditor.CodeMirror.getValue();
+                return !code.includes("# -START OF AI CELL-");
+            }
+            return true; // If can't check content, include it
+        });
+
+        validButtons.forEach((button, index) => {
+            setTimeout(() => {
+                button.click();
+            }, delay * (index + 1));
+        });
+    }
+
+    document.getElementById('runAllCellsButton').addEventListener('click', runAllCells);
+}
+
+function runThisCell(cell) {
+    if (!cell) {
+        console.error('No code cell was provided.');
+        return;
+    }
+
+    // Find the SageCell execution button inside this particular notebook cell.
+    const executeButton = cell.querySelector(
+        '.sagecell_evalButton.ui-button.ui-corner-all.ui-widget'
+    );
+
+    if (executeButton) {
+        executeButton.click();
+    } else {
+        console.error('Execute button not found in this cell.');
+    }
+}
+
+function runCellsUpTo(targetCell) {
+    // Get all code cells in the notebook
+    const allCodeCells = document.querySelectorAll('.nb-code-cell');
+    const codeCellsArray = Array.from(allCodeCells);
+
+    // Find the index of the target cell
+    const targetIndex = codeCellsArray.indexOf(targetCell);
+
+    if (targetIndex === -1) {
+        console.error("Target cell not found in code cells array");
+        return;
+    }
+
+    // Get cells to run (all cells up to and including target)
+    const cellsToRun = codeCellsArray.slice(0, targetIndex + 1);
+
+    // Get the delay value from the input field
+    const delay = Number.isFinite(Number(RUN_DELAY)) && Number(RUN_DELAY) > 0
+        ? Number(RUN_DELAY)
+        : 900;
+
+    // Filter out cells containing AI marker
+    const validCellsToRun = cellsToRun.filter(cell => {
+        const cmEditor = cell.querySelector('.CodeMirror');
+        if (cmEditor && cmEditor.CodeMirror) {
+            const code = cmEditor.CodeMirror.getValue();
+            return !code.includes("# -START OF AI CELL-");
+        }
+        return true; // If can't check content, include it
+    });
+
+    // Run each valid cell with the specified delay
+    validCellsToRun.forEach((cell, index) => {
+        setTimeout(() => {
+            const executeButton = cell.querySelector('.sagecell_evalButton.ui-button.ui-corner-all.ui-widget');
+            if (executeButton) {
+                executeButton.click();
+                console.log(`Running cell ${index + 1} of ${validCellsToRun.length}`);
+            }
+        }, delay * index);
+    });
+
+    console.log(`Scheduled ${validCellsToRun.length} cells to run with ${delay}ms delay between them`);
+}
+
+
+
+
+let editMode = false;
+
+function toggleEditMode() {
+    // First, determine what the new state should be (opposite of current)
+    const newEditModeState = !editMode;
+    console.log(`Toggling edit mode to: ${newEditModeState ? 'Edit' : 'View'}`);
+
+    // Get all markdown cells
+    const markdownCells = document.querySelectorAll('.nb-cell.nb-markdown-cell');
+
+    markdownCells.forEach(cell => {
+        // Check if this cell has multiple control bars
+        const controlBars = cell.querySelectorAll('.control-bar');
+        if (controlBars.length > 1) {
+            // Keep only the first control bar and remove others
+            console.log(`Found ${controlBars.length} control bars in cell, removing duplicates`);
+            for (let i = 1; i < controlBars.length; i++) {
+                controlBars[i].remove();
+            }
+        }
+
+        // Get the Edit/View toggle button for this cell (from the first/only control bar)
+        const toggleButton = cell.querySelector('.control-bar button:first-child');
+        if (!toggleButton) {
+            console.log("No toggle button found for cell");
+            return; // Skip if no button found
+        }
+
+        // Handle CodeMirror cells
+        if (cell.cmEditor) {
+            const cmElement = cell.querySelector('.CodeMirror');
+            const preview = cell.querySelector('.markdown-preview');
+
+            if (!cmElement || !preview) {
+                console.log("Missing CodeMirror or preview element");
+                return; // Skip if elements not found
+            }
+
+            if (newEditModeState) {
+                // Switch to edit mode
+                cmElement.style.display = 'block';
+                preview.style.display = 'block';
+                cell.cmEditor.refresh(); // Important for CM to render correctly
+                toggleButton.textContent = 'View';
+            } else {
+                // Switch to view mode
+                cmElement.style.display = 'none';
+                preview.style.display = 'block';
+
+                // Update the preview with the latest content
+                renderMarkdownWithCM(cell.cmEditor, preview);
+                toggleButton.textContent = 'Edit';
+            }
+        } else {
+            // Handle traditional cells
+            const input = cell.querySelector('[id^="mdinput"]');
+            const preview = cell.querySelector('[id^="preview"]');
+
+            if (!input || !preview) {
+                console.log("Missing input or preview element");
+                return; // Skip if elements not found
+            }
+
+            if (newEditModeState) {
+                // Switch to edit mode
+                input.style.display = 'block';
+                preview.style.display = 'block';
+                toggleButton.textContent = 'View';
+            } else {
+                // Switch to view mode
+                input.style.display = 'none';
+                preview.style.display = 'block';
+
+                // Update preview
+                if (typeof renderMarkdown === 'function') {
+                    renderMarkdown(input, preview);
+                } else if (typeof texme !== 'undefined' && texme.render) {
+                    preview.innerHTML = texme.render(input.value);
+
+                    // Process math if available
+                    if (window.MathJax) {
+                        window.MathJax.texReset();
+                        window.MathJax.typesetPromise([preview]);
+                    }
+                }
+                toggleButton.textContent = 'Edit';
+            }
+        }
+    });
+
+    // Update the global edit mode state
+    editMode = newEditModeState;
+
+    // Optionally update the "Edit Cells" button text to reflect the current state
+    const editCellsButton = document.getElementById('editCells');
+    if (editCellsButton) {
+        editCellsButton.innerHTML = iconDictionaryNavbar["editCells"];
+        editCellsButton.title = 'Edit/View Mode (Ctrl+E)';
+    }
+}
+
+
+
+
+function addControlPanel() {
+    const controlPanel = document.createElement('div');
+    controlPanel.id = 'controls';
+    const navbar = document.getElementById('navbar');
+
+    if (!navbar) {
+        console.error("Navbar element not found");
+        return;
+    }
+
+    const tocButton = document.createElement('button');
+    tocButton.id = 'tocButton';
+    tocButton.innerHTML = iconDictionaryNavbar["tableOfContents"];
+    tocButton.title = 'Table of Contents';
+    tocButton.onclick = toggleTableOfContents;
+
+    const runButton = document.createElement('button');
+    runButton.id = 'runAllCellsButton';
+    runButton.innerHTML = iconDictionaryNavbar["runAll"];
+    runButton.title = 'Run All Cells (Ctrl+R)';
+
+    const restartButton = document.createElement('button');
+    restartButton.id = 'restartKernelButton';
+    restartButton.innerHTML = iconDictionaryNavbar["restart"];
+    restartButton.title = 'Restart Sage Kernel (Ctrl+K)';
+    restartButton.onclick = function () {
+        if (typeof restartNotebook === 'function') {
+            // Uses defaults in restartNotebook (e.g., newKernel: true, reexecute: false)
+            restartNotebook();
+        } else {
+            console.error('restartNotebook() is not defined.');
+            alert('Restart function is not available.');
+        }
+    };
+
+    const toggleNavbarButton = document.createElement('button');
+    toggleNavbarButton.id = 'toggleNavbar';
+    toggleNavbarButton.innerHTML = iconDictionaryNavbar["toggleNavBar"];
+    toggleNavbarButton.title = 'Toggle Bar (Ctrl+B)';
+    toggleNavbarButton.onclick = toggleNavbar;
+
+    const editCellsButton = document.createElement('button');
+    editCellsButton.id = 'editCells';
+    editCellsButton.innerHTML = iconDictionaryNavbar["editCells"];
+    editCellsButton.title = 'Edit/View Mode (Ctrl+E)';
+    editCellsButton.onclick = toggleEditMode;
+
+    const exportButton = document.createElement('button');
+    exportButton.id = 'exportCells';
+    exportButton.innerHTML = iconDictionaryNavbar["exportCells"];
+    exportButton.title = 'Import / Export Notebook (Ctrl+P / Ctrl+I)';
+    exportButton.onclick = showImportExportPopup;
+
+    function showImportExportPopup() {
+        // Overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;' +
+            'background-color:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;' +
+            'z-index:10000;font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;';
+
+        // Popup
+        const popup = document.createElement('div');
+        popup.style.cssText = 'position:relative;background-color:#fefefe;padding:30px;border:1px solid #ccc;' +
+            'border-radius:8px;box-shadow:0 5px 15px rgba(0,0,0,0.2);min-width:280px;max-width:420px;' +
+            'text-align:center;box-sizing:border-box;';
+
+        // Close function (reusable)
+        function closePopup() {
+            if (document.body.contains(overlay)) {
+                document.body.removeChild(overlay);
+            }
+            document.removeEventListener('keydown', escHandler);
+        }
+
+        // Small "x" button in the upper right corner (replaces the old Cancel button)
+        const closeBtn = document.createElement('button');
+        closeBtn.innerHTML = '&times;';
+        closeBtn.title = 'Close';
+        closeBtn.style.cssText = 'position:absolute;top:6px;right:10px;font-size:24px;font-weight:bold;' +
+            'border:none;background:transparent;cursor:pointer;color:#555;line-height:1;padding:0;';
+        closeBtn.onmouseover = () => { closeBtn.style.color = '#000'; };
+        closeBtn.onmouseout = () => { closeBtn.style.color = '#555'; };
+        closeBtn.onclick = closePopup;
+        popup.appendChild(closeBtn);
+
+        // Heading
+        const heading = document.createElement('h3');
+        heading.textContent = 'Import / Export';
+        heading.style.cssText = 'margin-top:0;margin-bottom:15px;color:#333;font-weight:600;' +
+            'border-bottom:1px solid #eee;padding-bottom:10px;';
+        popup.appendChild(heading);
+
+        // Helper: option button (same look as the old popup buttons)
+        function makeOptionButton(label, action) {
+            const btn = document.createElement('button');
+            btn.textContent = label;
+            btn.style.cssText = 'display:block;width:100%;padding:10px;margin:8px 0;border:none;border-radius:4px;' +
+                'background-color:var(--main-color, #4CAF50);color:white;font-size:0.95em;cursor:pointer;' +
+                'transition:background-color 0.2s ease, box-shadow 0.2s ease;';
+            btn.onmouseover = () => { btn.style.backgroundColor = '#286090'; btn.style.boxShadow = '0 2px 5px rgba(0,0,0,0.15)'; };
+            btn.onmouseout = () => { btn.style.backgroundColor = 'var(--main-color, #4CAF50)'; btn.style.boxShadow = 'none'; };
+            btn.onclick = () => { closePopup(); action(); };
+            return btn;
+        }
+
+        // Helper: section label
+        function makeSectionLabel(text) {
+            const label = document.createElement('div');
+            label.textContent = text;
+            label.style.cssText = 'margin:14px 0 4px 0;font-weight:600;color:#666;font-size:0.85em;' +
+                'text-transform:uppercase;letter-spacing:0.5px;';
+            return label;
+        }
+
+        // Helper: hidden file picker
+        function pickFile(accept, handler) {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = accept;
+            fileInput.style.display = 'none';
+            fileInput.onchange = function(event) {
+                const file = event.target.files[0];
+                if (file) handler(file);
+                document.body.removeChild(fileInput);
+            };
+            document.body.appendChild(fileInput);
+            fileInput.click();
+        }
+
+        // ---- Export section (former Export Format menu) ----
+        popup.appendChild(makeSectionLabel('Export'));
+        const exportButtons = [
+            makeOptionButton('IPYNB (with outputs)', () => downloadNotebookAsIPYNB(true)),
+            makeOptionButton('IPYNB (no outputs)',    () => downloadNotebookAsIPYNB(false)),
+            makeOptionButton('TXT', downloadNotebookText),
+            makeOptionButton('SAGE (code only)', downloadAllCodeAsSage),
+            makeOptionButton('SAGE (code only, minified / base64)', downloadAllCodeAsMinifiedSage)
+        ];
+        exportButtons.forEach(btn => popup.appendChild(btn));
+
+        // ---- Import section (former Import Format menu) ----
+        popup.appendChild(makeSectionLabel('Import'));
+        popup.appendChild(makeOptionButton('IPYNB', () => pickFile('.ipynb', importFromIPYNB)));
+        popup.appendChild(makeOptionButton('TXT', () => pickFile('.txt', importNotebookFromFile)));
+
+        // ---- Drag & drop zone for .ipynb / .txt ----
+        const dropZone = document.createElement('div');
+        dropZone.textContent = 'Drag & drop .ipynb or .txt file here';
+        dropZone.style.cssText = 'margin-top:16px;padding:18px 10px;border:2px dashed #bbb;border-radius:6px;' +
+            'color:#888;font-size:0.9em;transition:border-color 0.2s, background-color 0.2s;';
+        popup.appendChild(dropZone);
+
+        ['dragenter', 'dragover'].forEach(evt => {
+            dropZone.addEventListener(evt, function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.style.borderColor = 'var(--main-color, #4CAF50)';
+                dropZone.style.backgroundColor = '#f0f7f0';
+            });
+        });
+        dropZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.style.borderColor = '#bbb';
+            dropZone.style.backgroundColor = 'transparent';
+        });
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.style.borderColor = '#bbb';
+            dropZone.style.backgroundColor = 'transparent';
+
+            const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (!file) return;
+            const name = file.name.toLowerCase();
+            if (name.endsWith('.ipynb')) {
+                closePopup();
+                importFromIPYNB(file);
+            } else if (name.endsWith('.txt')) {
+                closePopup();
+                importNotebookFromFile(file);
+            } else {
+                alert('Unsupported file type. Please drop a .ipynb or .txt file.');
+            }
+        });
+
+        overlay.appendChild(popup);
+        document.body.appendChild(overlay);
+
+        // Close when clicking outside the popup
+        overlay.addEventListener('click', function(event) {
+            if (event.target === overlay) closePopup();
+        });
+
+        // Close with Escape
+        function escHandler(e) {
+            if (e.key === 'Escape') closePopup();
+        }
+        document.addEventListener('keydown', escHandler);
+
+        // Focus the first export button so Enter works immediately
+        setTimeout(() => exportButtons[0].focus(), 0);
+    }
+
+    const aiSettingsButton = document.createElement('button');
+    aiSettingsButton.id = 'aiSettings';
+    aiSettingsButton.innerHTML = iconDictionaryNavbar["settings"];
+    aiSettingsButton.title = 'Settings';
+    aiSettingsButton.onclick = createAiSettingsModal;
+
+    // Insert the new elements at the beginning of the navbar
+    // Help button
+    const helpButton = document.createElement('button');
+    helpButton.id = 'helpButton';
+    helpButton.innerHTML = iconDictionaryNavbar["help"];
+    helpButton.title = 'Help';
+    helpButton.onclick = createHelpModal;
+
+    const bulkActionsButton = document.createElement('button');
+    bulkActionsButton.id = 'bulkActionsBtn';
+    bulkActionsButton.innerHTML = iconDictionaryNavbar["bulkActions"];
+    bulkActionsButton.title = 'Bulk Cell Actions / Merge (Ctrl+Q)';
+    bulkActionsButton.onclick = toggleBulkCheckboxes;
+    navbar.insertBefore(exportButton, navbar.firstChild);
+
+    navbar.insertBefore(helpButton, navbar.firstChild);
+    navbar.insertBefore(aiSettingsButton, navbar.firstChild);
+    // Disabled Toggle AI Cells Button
+    // navbar.insertBefore(toggleAiButton, aiSettingsButton.nextSibling);
+    navbar.insertBefore(editCellsButton, navbar.firstChild);
+    navbar.insertBefore(runButton, navbar.firstChild);
+    navbar.insertBefore(tocButton, navbar.firstChild);
+    navbar.insertBefore(restartButton, navbar.firstChild);
+    // navbar.appendChild(helpButton);
+    controlPanel.appendChild(toggleNavbarButton);
+    document.body.insertBefore(controlPanel, main);
+    navbar.insertBefore(bulkActionsButton, editCellsButton.nextSibling);
+
+    const linkElement = document.querySelector('link[href="https://dahn-research.eu/nbplayer/css/nbplayer.css"]');
+    if (linkElement) {
+        linkElement.href = "https://cdn.jsdelivr.net/gh/JupyterPER/SageMathAINotebooks@main/css/nbplayer21.css";
+    }
+
+    // Automatically click the Edit Cells button twice
+    setTimeout(() => {
+        editCellsButton.click();
+        setTimeout(() => {
+            editCellsButton.click();
+        }, 100); // 100ms delay between clicks
+    }, 100); // Wait 100ms after creation before first click
+}
+
+
+function toggleNavbar() {
+    const navbar = document.getElementById('navbar');
+    
+    if (navbar.style.display === 'none') {
+        navbar.style.display = '';
+        navbar.style.visibility = 'visible';
+        navbar.style.opacity = '1';
+    } else {
+        navbar.style.display = 'none';
+        navbar.style.visibility = 'hidden';
+        navbar.style.opacity = '0';
+    }
+}
+
+
+const iconDictionaryNavbar = {
+    help: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M10 8.484C10.5 7.494 11 7 12 7c1.246 0 2 .989 2 1.978s-.5 1.483-2 2.473V13m0 3.5v.5"/></svg>`,
+    runAll: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="currentColor"  class="icon icon-tabler icons-tabler-filled icon-tabler-player-track-next"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M2 5v14c0 .86 1.012 1.318 1.659 .753l8 -7a1 1 0 0 0 0 -1.506l-8 -7c-.647 -.565 -1.659 -.106 -1.659 .753z" /><path d="M13 5v14c0 .86 1.012 1.318 1.659 .753l8 -7a1 1 0 0 0 0 -1.506l-8 -7c-.647 -.565 -1.659 -.106 -1.659 .753z" /></svg>`,
+    restart: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-rotate"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M19.95 11a8 8 0 1 0 -.5 4m.5 5v-5h-5" /></svg>`,
+    saveNotebook: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-device-floppy"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" /><path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M14 4l0 4l-6 0l0 -4" /></svg>`,
+    toggleNavBar: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-menu-2"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 6l16 0" /><path d="M4 12l16 0" /><path d="M4 18l16 0" /></svg>`,
+    settings: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="currentColor"  class="icon icon-tabler icons-tabler-filled icon-tabler-settings"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14.647 4.081a.724 .724 0 0 0 1.08 .448c2.439 -1.485 5.23 1.305 3.745 3.744a.724 .724 0 0 0 .447 1.08c2.775 .673 2.775 4.62 0 5.294a.724 .724 0 0 0 -.448 1.08c1.485 2.439 -1.305 5.23 -3.744 3.745a.724 .724 0 0 0 -1.08 .447c-.673 2.775 -4.62 2.775 -5.294 0a.724 .724 0 0 0 -1.08 -.448c-2.439 1.485 -5.23 -1.305 -3.745 -3.744a.724 .724 0 0 0 -.447 -1.08c-2.775 -.673 -2.775 -4.62 0 -5.294a.724 .724 0 0 0 .448 -1.08c-1.485 -2.439 1.305 -5.23 3.744 -3.745a.722 .722 0 0 0 1.08 -.447c.673 -2.775 4.62 -2.775 5.294 0zm-2.647 4.919a3 3 0 1 0 0 6a3 3 0 0 0 0 -6z" /></svg>`,
+    showHideCode: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-eye-code"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" /><path d="M20 21l2 -2l-2 -2" /><path d="M17 17l-2 2l2 2" /></svg>`,
+    editCells: `<svg  xmlns="http://www.w3.org/2000/svg"  width="22" height="22"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-markdown"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 5m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z" /><path d="M7 15v-6l2 2l2 -2v6" /><path d="M14 13l2 2l2 -2m-2 2v-6" /></svg>`,
+    exportCells: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" stroke-width="2"><path fill="currentColor" d="M11 20H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5v3a3 3 0 0 0 3 3h3v2a1 1 0 0 0 2 0V8.94a1.31 1.31 0 0 0-.06-.27v-.09a1.32 1.32 0 0 0-.19-.29l-6-6a1.32 1.32 0 0 0-.29-.19a.32.32 0 0 0-.09 0l-.31-.1H6a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h5a1 1 0 0 0 0-2m2-14.59L15.59 8H14a1 1 0 0 1-1-1Z"></path><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M10.5 16.5h9M13.5 13.5 10.5 16.5l3 3M16.5 13.5l3 3-3 3"></path></svg>`,
+    importCells: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" stroke-width="2"><path fill="currentColor" d="M11 20H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5v3a3 3 0 0 0 3 3h3v2a1 1 0 0 0 2 0V8.94a1.31 1.31 0 0 0-.06-.27v-.09a1.32 1.32 0 0 0-.19-.29l-6-6a1.32 1.32 0 0 0-.29-.19a.32.32 0 0 0-.09 0l-.31-.1H6a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h5a1 1 0 0 0 0-2m2-14.59L15.59 8H14a1 1 0 0 1-1-1ZM19 15h-5.59l1.3-1.29a1 1 0 0 0-1.42-1.42l-3 3a1.15 1.15 0 0 0-.21.33a1 1 0 0 0 0 .76a.93.93 0 0 0 .21.33l3 3a1 1 0 0 0 1.42 0a1 1 0 0 0 0-1.42L13.41 17H19a1 1 0 0 0 0-2"/></svg>`,
+    tableOfContents: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" stroke-width="2"><path fill="currentColor" d="M3 7h14a1 1 0 0 0 0-2H3a1 1 0 0 0 0 2zm4 4h10a1 1 0 0 0 0-2H7a1 1 0 0 0 0 2zm0 4h10a1 1 0 0 0 0-2H7a1 1 0 0 0 0 2zm-4 4h14a1 1 0 0 0 0-2H3a1 1 0 0 0 0 2z"/></svg>`,
+    fullWidth: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="0.4"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M4.81812 4.68161C4.99386 4.85734 4.99386 5.14227 4.81812 5.318L3.08632 7.0498H11.9135L10.1817 5.318C10.006 5.14227 10.006 4.85734 10.1817 4.68161C10.3575 4.50587 10.6424 4.50587 10.8181 4.68161L13.3181 7.18161C13.4939 7.35734 13.4939 7.64227 13.3181 7.818L10.8181 10.318C10.6424 10.4937 10.3575 10.4937 10.1817 10.318C10.006 10.1423 10.006 9.85734 10.1817 9.68161L11.9135 7.9498H3.08632L4.81812 9.68161C4.99386 9.85734 4.99386 10.1423 4.81812 10.318C4.64239 10.4937 4.35746 10.4937 4.18173 10.318L1.68173 7.818C1.50599 7.64227 1.50599 7.35734 1.68173 7.18161L4.18173 4.68161C4.35746 4.50587 4.64239 4.50587 4.81812 4.68161Z"/></svg>`,
+    toggleEval: `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="22" viewBox="0 0 36 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="32" height="18" rx="2" ry="2"/><text x="18" y="16.2" fill="currentColor" stroke="none" font-size="9" font-weight="bold" font-family="sans-serif" text-anchor="middle">▶Run</text></svg>`,
+    bulkActions: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3l8 -8" /><path d="M20 12v6a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h9" /></svg>`,
+}
+
+const iconDictionary = {
+    addBelow: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M9.25 10.0693H7.375V8.19434C7.375 7.98809 7.20625 7.81934 7 7.81934C6.79375 7.81934 6.625 7.98809 6.625 8.19434V10.0693H4.75C4.54375 10.0693 4.375 10.2381 4.375 10.4443C4.375 10.6506 4.54375 10.8193 4.75 10.8193H6.625V12.6943C6.625 12.9006 6.79375 13.0693 7 13.0693C7.20625 13.0693 7.375 12.9006 7.375 12.6943V10.8193H9.25C9.45625 10.8193 9.625 10.6506 9.625 10.4443C9.625 10.2381 9.45625 10.0693 9.25 10.0693Z" fill="currentColor"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M2.5 5.5V3.5H11.5V5.5H2.5ZM2 7C1.44772 7 1 6.55228 1 6V3C1 2.44772 1.44772 2 2 2H12C12.5523 2 13 2.44772 13 3V6C13 6.55229 12.5523 7 12 7H2Z" fill="currentColor"/>
+    </svg>`,
+    addAbove: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M9.25 3.93066H7.375V5.80566C7.375 6.01191 7.20625 6.18066 7 6.18066C6.79375 6.18066 6.625 6.01191 6.625 5.80566V3.93066H4.75C4.54375 3.93066 4.375 3.76191 4.375 3.55566C4.375 3.34941 4.54375 3.18066 4.75 3.18066H6.625V1.30566C6.625 1.09941 6.79375 0.930664 7 0.930664C7.20625 0.930664 7.375 1.09941 7.375 1.30566V3.18066H9.25C9.45625 3.18066 9.625 3.34941 9.625 3.55566C9.625 3.76191 9.45625 3.93066 9.25 3.93066Z" fill="currentColor"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M2.5 8.5V10.5H11.5V8.5H2.5ZM2 7C1.44772 7 1 7.44772 1 8V11C1 11.5523 1.44772 12 2 12H12C12.5523 12 13 11.5523 13 11V8C13 7.44771 12.5523 7 12 7H2Z" fill="currentColor"/></svg>`,
+    moveDown: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M12.471 7.52899C12.7632 7.23684 12.7632 6.76316 12.471 6.47101V6.47101C12.179 6.17905 11.7057 6.17884 11.4135 6.47054L7.75 10.1275V1.75C7.75 1.33579 7.41421 1 7 1V1C6.58579 1 6.25 1.33579 6.25 1.75V10.1275L2.59726 6.46822C2.30338 6.17381 1.82641 6.17359 1.53226 6.46774V6.46774C1.2383 6.7617 1.2383 7.2383 1.53226 7.53226L6.29289 12.2929C6.68342 12.6834 7.31658 12.6834 7.70711 12.2929L12.471 7.52899Z" fill="currentColor"/></svg>`,
+    moveUp: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M1.52899 6.47101C1.23684 6.76316 1.23684 7.23684 1.52899 7.52899V7.52899C1.82095 7.82095 2.29426 7.82116 2.58649 7.52946L6.25 3.8725V12.25C6.25 12.6642 6.58579 13 7 13V13C7.41421 13 7.75 12.6642 7.75 12.25V3.8725L11.4027 7.53178C11.6966 7.82619 12.1736 7.82641 12.4677 7.53226V7.53226C12.7617 7.2383 12.7617 6.7617 12.4677 6.46774L7.70711 1.70711C7.31658 1.31658 6.68342 1.31658 6.29289 1.70711L1.52899 6.47101Z" fill="currentColor"/></svg>`,
+    bin: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14px" height="16px">
+        <path d="M0 0h24v24H0z" fill="none"/>
+        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="currentColor"/></svg>`,
+    duplicate: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M2.79998 0.875H8.89582C9.20061 0.875 9.44998 1.13914 9.44998 1.46198C9.44998 1.78482 9.20061 2.04896 8.89582 2.04896H3.35415C3.04936 2.04896 2.79998 2.3131 2.79998 2.63594V9.67969C2.79998 10.0025 2.55061 10.2667 2.24582 10.2667C1.94103 10.2667 1.69165 10.0025 1.69165 9.67969V2.04896C1.69165 1.40328 2.1904 0.875 2.79998 0.875ZM5.36665 11.9V4.55H11.0833V11.9H5.36665ZM4.14165 4.14167C4.14165 3.69063 4.50728 3.325 4.95832 3.325H11.4917C11.9427 3.325 12.3083 3.69063 12.3083 4.14167V12.3083C12.3083 12.7594 11.9427 13.125 11.4917 13.125H4.95832C4.50728 13.125 4.14165 12.7594 4.14165 12.3083V4.14167Z" fill="currentColor"/>
+        <path d="M9.43574 8.26507H8.36431V9.3365C8.36431 9.45435 8.26788 9.55078 8.15002 9.55078C8.03217 9.55078 7.93574 9.45435 7.93574 9.3365V8.26507H6.86431C6.74645 8.26507 6.65002 8.16864 6.65002 8.05078C6.65002 7.93292 6.74645 7.8365 6.86431 7.8365H7.93574V6.76507C7.93574 6.64721 8.03217 6.55078 8.15002 6.55078C8.26788 6.55078 8.36431 6.64721 8.36431 6.76507V7.8365H9.43574C9.5536 7.8365 9.65002 7.93292 9.65002 8.05078C9.65002 8.16864 9.5536 8.26507 9.43574 8.26507Z" fill="currentColor" stroke="currentColor" stroke-width="0.5"/></svg>`,
+    aiComplete: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="16" viewBox="0 0 24 24" fill="none">
+        <path d="m8 8-4 4 4 4m8 0 4-4-4-4m-2-3-4 14" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>`,
+    aiFormat: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <path d="M14 4.182A4.136 4.136 0 0 1 16.9 3c1.087 0 2.13.425 2.899 1.182A4.01 4.01 0 0 1 21 7.037c0 1.068-.43 2.092-1.194 2.849L18.5 11.214l-5.8-5.71 1.287-1.31.012-.012Zm-2.717 2.763L6.186 12.13l2.175 2.141 5.063-5.218-2.141-2.108Zm-6.25 6.886-1.98 5.849a.992.992 0 0 0 .245 1.026 1.03 1.03 0 0 0 1.043.242L10.282 19l-5.25-5.168Zm6.954 4.01 5.096-5.186-2.218-2.183-5.063 5.218 2.185 2.15Z" fill="currentColor"/></svg>`,
+    aiExplain: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <path d="M2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10S2 17.523 2 12Zm9.008-3.018a1.502 1.502 0 0 1 2.522 1.159v.024a1.44 1.44 0 0 1-1.493 1.418 1 1 0 0 0-1.037.999V14a1 1 0 1 0 2 0v-.539a3.44 3.44 0 0 0 2.529-3.256 3.502 3.502 0 0 0-7-.255 1 1 0 0 0 2 .076c.014-.398.187-.774.48-1.044Zm.982 7.026a1 1 0 1 0 0 2H12a1 1 0 1 0 0-2h-.01Z" fill="currentColor"/></svg>`,
+    aiVision: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <path fill="currentColor" d="M2.062 11.346a.99.99 0 0 1 0-.691C3.773 6 7.674 3 12 3s8.227 3 9.938 7.655a.987.987 0 0 1 0 .69 13.339 13.339 0 0 1-1.08 2.264 1 1 0 1 1-1.715-1.028A11.3 11.3 0 0 0 19.928 11C18.451 7.343 15.373 5 12 5S5.549 7.343 4.072 11a9.315 9.315 0 0 0 6.167 5.787 1 1 0 0 1-.478 1.942A11.393 11.393 0 0 1 2.062 11.346ZM16 11a4 4 0 0 0-5.577-3.675 1.5 1.5 0 1 1-2.1 2.1A4 4 0 1 0 16 11Zm1.5 10a1 1 0 0 0 1-1v-1.5H20a1 1 0 0 0 0-2h-1.5V15a1 1 0 0 0-2 0v1.5H15a1 1 0 0 0 0 2h1.5V20a1 1 0 0 0 1 1Z"/></svg>`,
+    aiEdu: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <path fill="currentColor" d="M12 3a1 1 0 0 1 .447.106l9 4.5a1 1 0 0 1 0 1.788L18 11.118V15.5a1 1 0 0 1-.486.857 10.5 10.5 0 0 1-11.028 0A1 1 0 0 1 6 15.5v-4.382L2.553 9.394a1 1 0 0 1 0-1.788l9-4.5A1 1 0 0 1 12 3Zm0 2.118L5.236 8.5 12 11.882 18.764 8.5 12 5.118ZM8 12.118V14.89a8.5 8.5 0 0 0 8 0v-2.772l-3.553 1.776a1 1 0 0 1-.894 0L8 12.118Zm12.5-1.618a1 1 0 0 1 1 1v4a1 1 0 1 1-2 0v-4a1 1 0 0 1 1-1Z"/></svg>`,
+    addEditExcel: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <path d="M3 3h18v18H3V3zm2 2v4h4V5H5zm6 0v4h4V5h-4zm6 0v4h4V5h-4zM5 11v4h4v-4H5zm6 0v4h4v-4h-4zm6 0v4h4v-4h-4zM5 17v2h4v-2H5zm6 0v2h4v-2h-4zm6 0v2h4v-2h-4z" fill="currentColor"/></svg>`,
+    markdownTips: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24">
+        <path d="M10 1c3.11 0 5.63 2.52 5.63 5.62 0 1.84-2.03 4.58-2.03 4.58-.33.44-.6 1.25-.6 1.8v1c0 .55-.45 1-1 1H8c-.55 0-1-.45-1-1v-1c0-.55-.27-1.36-.6-1.8 0 0-2.02-2.74-2.02-4.58C4.38 3.52 6.89 1 10 1zM7 16.87V16h6v.87c0 .62-.13 1.13-.75 1.13H12c0 .62-.4 1-1.02 1h-2c-.61 0-.98-.38-.98-1h-.25c-.62 0-.75-.51-.75-1.13z" fill="currentColor"/></svg>`,
+    codeConvertTo: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="16" viewBox="0 0 38 24" fill="none"><path d="M2 12h8m-4-4 4 4-4 4" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/><g transform="translate(-2 -1) scale(1.15)"><path d="M20 8l-4 4 4 4m8 0 4-4-4-4m-2-3-4 14" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></g></svg>`,
+    markdownConvertTo: `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="16" viewBox="0 0 42 24" fill="none"><path d="M2 12h8m-4-4 4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><g transform="translate(15.5 -1.3) scale(1.9)" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round"><path fill="none" d="M1.75 2.9167m0 1.1667a1.1667 1.1667 0 0 1 1.1667-1.1667h8.1666a1.1667 1.1667 0 0 1 1.1667 1.1667v5.8333a1.1667 1.1667 0 0 1-1.1667 1.1667h-8.1666a1.1667 1.1667 0 0 1-1.1667-1.1667z"/><path fill="none" d="M4.0833 8.75v-3.5l1.1667 1.1667 1.1667-1.1667v3.5"/><path fill="none" d="M8.1667 7.5833l1.1666 1.1667 1.1667-1.1667m-1.1667 1.1667v-3.5"/></g></svg>`,
+    copyOutput: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16">
+        <path d="M9.5 0a.5.5 0 0 1 .5.5.5.5 0 0 0 .5.5.5.5 0 0 1 .5.5V2a.5.5 0 0 1-.5.5h-5A.5.5 0 0 1 5 2v-.5a.5.5 0 0 1 .5-.5.5.5 0 0 0 .5-.5.5.5 0 0 1 .5-.5z" fill="currentColor"/>
+        <path d="M3.5 1h.585A1.5 1.5 0 0 0 4 1.5V2a1.5 1.5 0 0 0 1.5 1.5h5A1.5 1.5 0 0 0 12 2v-.5q-.001-.264-.085-.5h.585A1.5 1.5 0 0 1 14 2.5v12a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-12A1.5 1.5 0 0 1 3.5 1" fill="currentColor"/></svg>`,
+    runUpTo: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path d="M2 5v14c0 .86 1.012 1.318 1.659.753l8-7a1 1 0 0 0 0-1.506l-8-7C3.012 3.676 2 4.14 2 5z" fill="currentColor"/><path d="M13 5v14c0 .86 1.012 1.318 1.659.753l8-7a1 1 0 0 0 0-1.506l-8-7C14.012 3.676 13 4.14 13 5z" fill="currentColor"/></svg>`,
+    runThis: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14">
+        <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393" fill="currentColor"/></svg>`,
+    splitCell: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="-1 -1 19 19" fill="currentColor">
+    <path d="M10.85 13.05l0.85 0.85-3.2 3.2-3.2-3.2 0.85-0.85 1.75 1.75v-4.15h1.2v4.15l1.75-1.75zM7.9 1.85v4.15h1.2v-4.15l1.75 1.75 0.85-0.85-3.2-3.2-3.2 3.2 0.85 0.85L7.9 1.85zM-0.5 7.9v1.2h18v-1.2h-18z"/></svg>`,
+    compressCell: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h6V3"/><path d="M20 15h-6v6"/><path d="M14 9V3"/><path d="M10 15v6"/><path d="M20 9h-6"/><path d="M4 15h6"/></svg>`,
+    end: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 17 17" fill="currentColor" aria-hidden="true"><path d="M4.5 3.5 L3.5 4.5 L7 8 L3.5 11.5 L4.5 12.5 L8 9 L11.5 12.5 L12.5 11.5 L9 8 L12.5 4.5 L11.5 3.5 L8 7 L4.5 3.5 Z"/></svg>`,
+};
+
+
+// Toggle comment for SageCell CodeMirror instances (Ctrl+/)
+function toggleSageCellComment(cm) {
+    var ranges = cm.listSelections();
+    cm.operation(function() {
+        for (var i = 0; i < ranges.length; i++) {
+            var from = ranges[i].from().line;
+            var to = ranges[i].to().line;
+            if (ranges[i].to().ch === 0 && to > from) to--;
+
+            var allCommented = true;
+            for (var j = from; j <= to; j++) {
+                var line = cm.getLine(j);
+                if (line.trim() !== '' && !line.match(/^\s*#/)) {
+                    allCommented = false;
+                    break;
+                }
+            }
+
+            for (var j = from; j <= to; j++) {
+                var line = cm.getLine(j);
+                if (line.trim() === '') continue;
+
+                if (allCommented) {
+                    var newLine = line.replace(/^(\s*)# ?/, '$1');
+                    cm.replaceRange(newLine, {line: j, ch: 0}, {line: j, ch: line.length});
+                } else {
+                    var indent = line.match(/^\s*/)[0];
+                    var newLine = indent + '# ' + line.substring(indent.length);
+                    cm.replaceRange(newLine, {line: j, ch: 0}, {line: j, ch: line.length});
+                }
+            }
+        }
+    });
+}
+
+// Add Ctrl+/ to a single code cell's SageCell CM (with retry)
+function addCommentShortcutToCell(cellElement, retries) {
+    retries = retries || 0;
+    if (retries > 25) return;
+
+    var cmEl = cellElement.querySelector('.sagecell_input .CodeMirror');
+    if (!cmEl || !cmEl.CodeMirror) {
+        setTimeout(function() { addCommentShortcutToCell(cellElement, retries + 1); }, 200);
+        return;
+    }
+
+    if (cmEl.CodeMirror._commentShortcutAdded) return;
+
+    cmEl.CodeMirror.addKeyMap({
+        "Ctrl-/": toggleSageCellComment,
+        "Cmd-/": toggleSageCellComment
+    });
+    cmEl.CodeMirror._commentShortcutAdded = true;
+}
+
+// Add Ctrl+/ to all existing SageCells
+function addCommentShortcutToAllSageCells() {
+    document.querySelectorAll('.nb-code-cell').forEach(function(cell) {
+        addCommentShortcutToCell(cell);
+    });
+}
+
+// Initialize SageCell for a single compute element, using the shared kernel
+function initSageCellOnElement(computeEl) {
+    if (!computeEl) return;
+
+    const cfg = Object.assign({}, window.playerConfig || {});
+    const isDe = (typeof getBrowserLanguage === 'function' && getBrowserLanguage() === 'de');
+    const evalBtn = isDe ? 'Ausführen' : '▶ Run';
+
+    // Always get the current shared link key
+    const linkKey = window.getSharedLinkKey();
+
+    // Initialize only this compute element
+    sagecell.makeSagecell({
+        inputLocation: $(computeEl),
+        languages: [cfg.lang || 'sage'],
+        evalButtonText: evalBtn,
+        linked: true,
+        linkKey: linkKey,
+        autoeval: !!cfg.eval,
+        hide: cfg.hide || ['fullScreen']
+    });
+    
+    console.log('Initialized SageCell with linkKey:', linkKey);
+    var codeCell = computeEl.closest('.nb-code-cell');
+    if (codeCell) addCommentShortcutToCell(codeCell);
+}
+
+// Ensure a code cell has exactly one compute/script prepared,
+// but DO NOT delete any existing outputs. Returns the compute node to initialize, or null if already initialized.
+function ensureComputeDivForCodeCell(cell) {
+    if (!cell || !cell.classList.contains('nb-code-cell')) return null;
+
+    // If already initialized (compute.sagecell exists), do nothing
+    const existingInitialized = cell.querySelector('.compute.sagecell');
+    if (existingInitialized) return null;
+
+    // Use an existing compute if present, else create one
+    let compute = cell.querySelector('.compute');
+    if (!compute) {
+        compute = document.createElement('div');
+        compute.className = 'compute';
+        cell.appendChild(compute);
+    }
+
+    // Ensure we have a script tag with sage code inside compute
+    let script = compute.querySelector('script[type="text/x-sage"]');
+    if (!script) {
+        script = document.createElement('script');
+        script.type = 'text/x-sage';
+        compute.appendChild(script);
+    }
+
+    // Get current code text from the best available source
+    let code = '';
+    
+    // First try SageCell's CodeMirror
+    const sagecellCM = cell.querySelector('.sagecell_input .CodeMirror');
+    if (sagecellCM && sagecellCM.CodeMirror) {
+        code = sagecellCM.CodeMirror.getValue();
+    } else {
+        // Try any CodeMirror in the cell
+        const cmEl = cell.querySelector('.CodeMirror');
+        if (cmEl && cmEl.CodeMirror) {
+            code = cmEl.CodeMirror.getValue();
+        } else {
+            // Fallbacks
+            if (typeof getCodeFromCell === 'function') {
+                code = getCodeFromCell(cell, 0).replace(/^In\[\d+\]:\s*\n?/, '');
+            }
+            if (!code) {
+                const nbInput = cell.querySelector('nb-input');
+                if (nbInput) code = nbInput.textContent || '';
+            }
+            if (!code) {
+                const pre = cell.querySelector('pre');
+                if (pre) code = pre.textContent || '';
+            }
+        }
+    }
+
+    // Clean zero-width and BOM chars
+    code = String(code).replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+
+    // Update script content
+    script.textContent = code;
+
+    return compute;
+}
+
+function reprocessNotebook() {
+    requestAnimationFrame(() => {
+        const codeCells = document.querySelectorAll('.nb-code-cell');
+        let initializedCount = 0;
+        const currentLinkKey = window.getSharedLinkKey();
+
+        codeCells.forEach(cell => {
+            // Clean zero-width characters from any script tags in this cell
+            cell.querySelectorAll('script[type="text/x-sage"]').forEach(s => {
+                s.textContent = (s.textContent || '').replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+            });
+
+            const computeToInit = ensureComputeDivForCodeCell(cell);
+            if (computeToInit && !computeToInit.classList.contains('sagecell')) {
+                initSageCellOnElement(computeToInit);
+                initializedCount++;
+            }
+        });
+
+        // Ensure only one compute.sagecell per code cell (keep last)
+        cleanupComputeDivs();
+
+        // Refresh numbering only (no global re-init)
+        removeSageCellNumbering();
+        addSageCellNumbering();
+
+        console.log(`Initialized ${initializedCount} new Sage cell(s) with shared kernel: ${currentLinkKey}`);
+
+        // Add comment shortcut
+        setTimeout(addCommentShortcutToAllSageCells, 500);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const navbar = document.getElementById('navbar');
+    navbar.style.display = '';
+    navbar.style.visibility = 'visible';
+    navbar.style.opacity = '1';
+});
+
+function addConvertToMarkdownButtons() {
+    const codeCells = document.querySelectorAll('.nb-cell.nb-code-cell');
+    
+    codeCells.forEach(cell => {
+        if (!cell.querySelector('.convert-button')) {
+            const convertButton = document.createElement('button');
+            convertButton.className = 'convert-button';
+            convertButton.textContent = 'Convert to Markdown';
+            
+            convertButton.addEventListener('click', () => {
+                convertToMarkdown(cell);
+            });
+            
+            cell.appendChild(convertButton);
+        }
+    });
+}
+
+
+function getCode(codeCell) {
+    if (!codeCell) {
+        console.error('No code cell provided');
+        return '';
+    }
+
+    // Extract all lines of text from the code cell
+    const codeLines = codeCell.querySelectorAll(".CodeMirror-code > div > pre > span");
+    
+    if (codeLines.length === 0) {
+        console.warn('No code lines found in the provided cell');
+        return '';
+    }
+
+    const codeText = Array.from(codeLines)
+        .map(line => line.textContent)
+        .join('\n');
+
+    return codeText;    
+}
+
+
+function showCode(codeCell) {
+    const code = getCode(codeCell);
+    if (code) {
+        // Assuming you have an element to display the code in
+        const displayElement = document.getElementById('codeDisplay');
+        displayElement.textContent = code;
+        displayElement.style.display = 'block';
+    }
+}
+
+function initializeCells() {
+	const cells = document.querySelectorAll('.nb-cell.nb-code-cell, .nb-cell.nb-markdown-cell');
+	cells.forEach(addControlBar);
+}
+
+function addControlBar(cell) {
+    const controlBar = document.createElement('div');
+    const controlAiBar = document.createElement('div');
+    controlBar.className = 'control-bar';
+    controlAiBar.className = 'control-ai-bar';
+
+    const addAboveBtn = createButtonIco('Add Above (Alt+A)', () => addCell(cell, 'above'), 'addAbove');
+    const addBelowBtn = createButtonIco('Add Below (Alt+B)', () => addCell(cell, 'below'), 'addBelow');
+    const addFiveBelowBtn = createButtonIco('Add 5 Below', () => addFiveCells(cell, 'below'), 'addBelow');
+    // Custom styling for the 5x indicator
+    addFiveBelowBtn.innerHTML = '<span style="font-size:1em;font-weight:bold;margin-right:2px;">5×</span>' + addFiveBelowBtn.innerHTML;
+
+    const addMarkdownAboveBtn = createButtonIco('Add Markdown Above', () => addMarkdownCell(cell, 'above'), 'addAbove');
+    addMarkdownAboveBtn.innerHTML = '<span style="font-size:1em;font-weight:bold;margin-right:2px;">MD</span>' + addMarkdownAboveBtn.innerHTML;
+    const addMarkdownBelowBtn = createButtonIco('Add Markdown Below', () => addMarkdownCell(cell, 'below'), 'addBelow');
+    addMarkdownBelowBtn.innerHTML = '<span style="font-size:1em;font-weight:bold;margin-right:2px;">MD</span>' + addMarkdownBelowBtn.innerHTML;
+
+    const deleteBtn = createButtonIco('Delete (Alt+D)', () => deleteCell(cell), 'bin');
+    const moveUpBtn = createButtonIco('Move Cell Up (Alt+Up)', () => moveCell(cell, 'up'), 'moveUp');
+    const moveDownBtn = createButtonIco('Move Cell Down (Alt+Down)', () => moveCell(cell, 'down'), 'moveDown');
+    const duplicateBtn = createButtonIco('Duplicate (Alt+U)', () => duplicateCell(cell), 'duplicate');
+
+    if (cell.classList.contains('nb-code-cell')) {
+        const convertToMarkdownBtn = createButtonIco('Convert to Markdown (Alt+M)', () => convertToMarkdown(cell), 'markdownConvertTo');
+        const aiCompleteBtn = createButtonIco('AI Complete', () => formatAndLoadCodeIntoCell(cell, `AI_complete`, CURRENT_MODEL, API_KEY, CURRENT_LANGUAGE, CUSTOM_CONTEXT), 'aiComplete');
+        const aiFormatBtn = createButtonIco('AI Format', () => formatAndLoadCodeIntoCell(cell, `AI_format`, CURRENT_MODEL, API_KEY, CURRENT_LANGUAGE, CUSTOM_CONTEXT), 'aiFormat');
+        const aiExplainBtn = createButtonIco('AI Explain', () => formatAndLoadCodeIntoCell(cell, `AI_explain`, CURRENT_MODEL, API_KEY, CURRENT_LANGUAGE, CUSTOM_CONTEXT), 'aiExplain');
+        const aiEduBtn = createButtonIco('AI Educate', () => formatAndLoadCodeIntoCell(cell, `AI_edu`, CURRENT_MODEL, API_KEY, CURRENT_LANGUAGE, CUSTOM_CONTEXT), 'aiEdu');
+        const aiVisionBtn = createButtonIco('AI Vision', () => createAiVisionModal(cell), 'aiVision');
+        const excelJsonBtn = createButtonIco('Import/Export Excel', () => openExcelImportExportDialog(cell), 'addEditExcel');
+        // Add the new "Copy Output to Markdown" button
+        const copyOutputBtn = createButtonIco('Copy Output To Markdown', () => copyOutputToMarkdown(cell), 'copyOutput');
+        const runThisCellBtn = createButtonIco('Run this cell', () => runThisCell(cell), 'runThis');
+        const runUpToHereBtn = createButtonIco('Run all cells from beginning to this cell', () => runCellsUpTo(cell), 'runUpTo');
+        const splitCellBtn = createButtonIco('Split Cell', () => splitCellAtCursor(cell), 'splitCell');
+        splitCellBtn.title = 'Split cell at cursor position (Alt+S)';
+
+        const compressBtn = createButtonIco('Compress / Decompress (Base64)', () => toggleCellCompression(cell), 'compressCell');
+        compressBtn.title = 'Minify this cell (# CAPS comments preserved)';
+
+        controlBar.appendChild(convertToMarkdownBtn);
+        controlBar.appendChild(splitCellBtn);
+        controlBar.appendChild(compressBtn);
+        controlBar.appendChild(runThisCellBtn);
+        controlBar.appendChild(runUpToHereBtn);
+        controlBar.appendChild(excelJsonBtn);
+        controlBar.appendChild(copyOutputBtn);
+
+
+        if (aiEduMode) controlAiBar.appendChild(aiEduBtn);
+        if (aiCompleteMode) controlAiBar.appendChild(aiCompleteBtn);
+        controlAiBar.appendChild(aiFormatBtn);
+        controlAiBar.appendChild(aiExplainBtn);
+        controlAiBar.appendChild(aiVisionBtn);
+        
+    } else if (cell.classList.contains('nb-markdown-cell')) {
+        // Determine the current state of the markdown cell
+        let isInEditMode = false;
+
+        // For CodeMirror-based cells
+        if (cell.cmEditor) {
+            const cmElement = cell.querySelector('.CodeMirror');
+            isInEditMode = cmElement && cmElement.style.display === 'block';
+        } else {
+            // For traditional cells
+            const input = cell.querySelector('[id^="mdinput"]');
+            isInEditMode = input && input.style.display === 'block';
+        }
+
+        // Set the appropriate button text based on the current state
+        const buttonText = isInEditMode ? 'View' : 'Edit';
+        const editToggleBtn = createButton(buttonText, () => toggleSingleCellEditMode(cell));
+        editToggleBtn.id = 'edit-toggle-' + Date.now(); // Add unique ID for state tracking
+
+        const convertToCodeBtn = createButtonIco('Convert to Code (Alt+C)', () => convertToCode(cell), 'codeConvertTo');
+        const markdownTipsBtn = createButtonIco('Markdown Tips', () => toggleMarkdownTips(cell), 'markdownTips');
+         const splitCellBtn = createButtonIco('Split Cell', () => splitCellAtCursor(cell), 'splitCell');
+        splitCellBtn.title = 'Split cell at cursor position (Alt+S)';
+
+        controlBar.appendChild(editToggleBtn);
+        controlBar.appendChild(convertToCodeBtn);
+        controlBar.appendChild(splitCellBtn);
+        controlBar.appendChild(markdownTipsBtn);
+    }
+
+    // Add the markdown cell creation buttons to all cells
+    controlBar.appendChild(addMarkdownBelowBtn);
+    controlBar.appendChild(addMarkdownAboveBtn);
+
+    controlBar.appendChild(duplicateBtn);
+    controlBar.appendChild(addFiveBelowBtn);
+    controlBar.appendChild(addBelowBtn);
+    controlBar.appendChild(addAboveBtn);
+    controlBar.appendChild(moveDownBtn);
+    controlBar.appendChild(moveUpBtn);
+    controlBar.appendChild(deleteBtn);
+
+    cell.insertBefore(controlBar, cell.firstChild);
+    // Insert the control AI bar only if API_KEY is defined and not empty
+    if (typeof API_KEY !== 'undefined' && API_KEY !== '') {
+        cell.insertBefore(controlAiBar, controlBar.nextSibling);
+    }
+}
+
+function removeAllControlBars() {
+    const cells = document.querySelectorAll('.nb-cell');
+    cells.forEach(removeControlBar);
+}
+
+function removeControlBar(cell) {
+    const controlBar = cell.querySelector('.control-bar');
+    const controlAiBar = cell.querySelector('.control-ai-bar');
+    const mdTips = cell.querySelector('.inline-markdown-tips');
+    if (controlBar) {
+        controlBar.remove();
+    }
+    if (controlAiBar) {
+        controlAiBar.remove();
+    }
+    if (mdTips) {
+        mdTips.remove();
+    }
+}
+
+function createButtonIco(text, onClick, iconType) {
+  const button = document.createElement('button');
+  button.innerHTML = iconDictionary[iconType];
+  button.title = text;
+  button.addEventListener('click', onClick);
+  return button;
+}
+
+function createButton(text, onClick) {
+	const button = document.createElement('button');
+	button.textContent = text;
+	button.addEventListener('click', onClick);
+	return button;
+}
+
+function createBlankSageCell() {
+	const codeCell = document.createElement('div');
+	codeCell.className = 'nb-cell nb-code-cell';
+	const content = document.createElement('div');
+	content.className = 'cell-content';
+	codeCell.appendChild(content);
+	return codeCell;
+
+}
+
+
+
+
+function addCell(referenceCell, position) {
+    const newCell = createBlankSageCell();
+
+    if (position === 'above') {
+        referenceCell.parentNode.insertBefore(newCell, referenceCell);
+    } else {
+        referenceCell.parentNode.insertBefore(newCell, referenceCell.nextSibling);
+    }
+
+    // Add control bar so the cell is functional
+    addControlBar(newCell);
+
+    // Ensure compute div exists and initialize with shared kernel
+    const compute = ensureComputeDivForCodeCell(newCell);
+    if (compute) {
+        initSageCellOnElement(compute);
+    }
+
+    // Refresh numbering
+    removeSageCellNumbering();
+    addSageCellNumbering();
+    
+    // Clean up any duplicates
+    cleanupComputeDivs();
+}
+
+
+function deleteCell(cell) {
+    const wasCodeCell = cell.classList.contains('nb-code-cell');
+
+    cell.remove();
+
+    // Only renumber after deletion. Do not re-initialize cells.
+    if (wasCodeCell) {
+        removeSageCellNumbering();
+        addSageCellNumbering();
+    }
+}
+
+function addFiveCells(referenceCell, position) {
+    const newCells = [];
+    for (let i = 0; i < 5; i++) newCells.push(createBlankSageCell());
+
+    if (position === 'above') {
+        for (let i = 4; i >= 0; i--) {
+            referenceCell.parentNode.insertBefore(newCells[i], referenceCell);
+        }
+    } else {
+        for (let i = 0; i < 5; i++) {
+            if (i === 0) {
+                referenceCell.parentNode.insertBefore(newCells[i], referenceCell.nextSibling);
+            } else {
+                referenceCell.parentNode.insertBefore(newCells[i], newCells[i-1].nextSibling);
+            }
+        }
+    }
+
+    // Add control bars and initialize each cell with shared kernel
+    newCells.forEach(cell => {
+        addControlBar(cell);
+        const compute = ensureComputeDivForCodeCell(cell);
+        if (compute) {
+            initSageCellOnElement(compute);
+        }
+    });
+
+    // Refresh numbering
+    removeSageCellNumbering();
+    addSageCellNumbering();
+    
+    // Clean up any duplicates
+    cleanupComputeDivs();
+}
+
+
+function moveCell(cell, direction) {
+    const parent = cell.parentNode;
+    const originalIndex = Array.from(parent.children).indexOf(cell);
+
+    if (direction === 'up' && cell.previousElementSibling) {
+        parent.insertBefore(cell, cell.previousElementSibling);
+    } else if (direction === 'down' && cell.nextElementSibling) {
+        parent.insertBefore(cell.nextElementSibling, cell);
+    }
+
+    const newIndex = Array.from(parent.children).indexOf(cell);
+
+    // If moved, just refresh numbering — do NOT reinitialize cells
+    if (originalIndex !== newIndex) {
+        removeSageCellNumbering();
+        addSageCellNumbering();
+    }
+}
+
+function duplicateCell(cell) {
+    // 1) Markdown cells
+    if (cell.classList.contains('nb-markdown-cell')) {
+        // Get content from original cell
+        let content = '';
+        if (cell.cmEditor) {
+            content = cell.cmEditor.getValue();
+        } else {
+            const textarea = cell.querySelector('textarea');
+            if (textarea) {
+                content = textarea.value || textarea.getAttribute('data-original') || '';
+            }
+        }
+
+        // Create a new markdown cell with this content
+        const uid = Date.now() + '-' + (++mdCellIdCounter);
+        const editorId = 'md-editor-' + uid;
+        const previewId = 'preview-' + uid;
+
+        const newCell = document.createElement('div');
+        newCell.className = 'nb-cell nb-markdown-cell';
+        newCell.innerHTML = `
+            <div class="editor-container">
+                <textarea id="${editorId}" placeholder="Enter your Markdown or HTML here"
+                          class="markdown-textarea"
+                          data-original=""></textarea>
+            </div>
+            <div id="${previewId}" class="markdown-preview"></div>
+        `;
+
+        // Insert the new cell after the original one
+        cell.parentNode.insertBefore(newCell, cell.nextSibling);
+
+        // Assign content safely via DOM property (prevents "</textarea>" breakage)
+        const textarea = newCell.querySelector('#' + editorId);
+        textarea.value = content;
+        textarea.setAttribute('data-original', content);
+
+        const editor = CodeMirror.fromTextArea(textarea, {
+            mode: 'markdown',
+            lineNumbers: true,
+            lineWrapping: true,
+            theme: 'default',
+            extraKeys: {
+                "Ctrl-Space": "autocomplete",
+                "Ctrl-/": "toggleComment",   
+                "Cmd-/": "toggleComment"
+            },
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            foldGutter: true,
+            gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+            highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
+        });
+
+        const origCM = cell.querySelector('.CodeMirror');
+        const newCM = newCell.querySelector('.CodeMirror');
+
+        // Store the CM instance on the cell
+        newCell.cmEditor = editor;
+
+        // Live preview updates
+        editor.on('change', () => {
+            const preview = newCell.querySelector('.markdown-preview');
+            if (preview) renderMarkdownWithCM(editor, preview);
+        });
+
+        // Match the original visibility state (edit/view)
+        const isInEditMode = !!(origCM && origCM.style.display === 'block');
+        newCM.style.display = isInEditMode ? 'block' : 'none';
+        const preview = newCell.querySelector('.markdown-preview');
+        preview.style.display = 'block';
+
+        // Initial render
+        renderMarkdownWithCM(editor, preview);
+
+        // Add control bar
+        addControlBar(newCell);
+
+        // Update the edit/view toggle text to match existing convention
+        const editButton = newCell.querySelector('.control-bar button:first-child');
+        if (editButton) {
+            editButton.textContent = isInEditMode ? 'View' : 'Edit';
+        }
+
+        return; // Done with markdown duplication
+    }
+
+    // 2) Code cells
+    if (cell.classList.contains('nb-code-cell')) {
+        // Extract current code
+        let code = '';
+        const cm = cell.querySelector('.CodeMirror');
+        if (cm && cm.CodeMirror) {
+            code = cm.CodeMirror.getValue();
+        } else {
+            const script = cell.querySelector('script[type="text/x-sage"]');
+            if (script) {
+                code = script.textContent || '';
+            } else if (typeof getCodeFromCell === 'function') {
+                // fallback; strip any In[n]: prefix
+                code = getCodeFromCell(cell, 0).replace(/^In\[\d+\]:\s*\n?/, '');
+            }
+        }
+
+        // Clean zero-width and BOM chars
+        code = String(code).replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+
+        // Build a fresh code cell with this code (no cloning of .sagecell DOM)
+        const newCell = createCodeCell(code);
+        cell.parentNode.insertBefore(newCell, cell.nextSibling);
+
+        // Add controls
+        addControlBar(newCell);
+
+        // Initialize only the new cell (non-destructive reprocess)
+        reprocessNotebook();
+
+        // Renumber safely
+        removeSageCellNumbering();
+        addSageCellNumbering();
+
+        return;
+    }
+}
+
+
+function createCodeCell(content) {
+    const codeCell = document.createElement('div');
+    codeCell.className = 'nb-cell nb-code-cell';
+
+    const computeDiv = document.createElement('div');
+    computeDiv.className = 'compute';
+
+    const script = document.createElement('nb-input');
+    script.type = 'text/x-sage';
+    script.textContent = content;
+
+    computeDiv.appendChild(script);
+    codeCell.appendChild(computeDiv);
+
+    return codeCell;
+}
+
+
+function cleanupComputeDivs() {
+    // Select all code cells
+    const codeCells = document.querySelectorAll('.nb-code-cell');
+
+    codeCells.forEach(cell => {
+        // Find all compute divs within this cell
+        const computeDivs = cell.querySelectorAll('.compute.sagecell');
+
+        // If there's more than one compute div
+        if (computeDivs.length > 1) {
+            // Keep only the last one
+            for (let i = 0; i < computeDivs.length - 1; i++) {
+                computeDivs[i].remove();
+            }
+        }
+    });
+}
+
+function loadPreviousCodeCells(focusedCell) {
+    let currentCell = focusedCell;
+    let cells = [];
+
+    while (currentCell !== null) {
+        currentCell = currentCell.previousElementSibling;
+        if (!currentCell) break;
+        if (currentCell.classList.contains('nb-code-cell')) {
+            cells.unshift(currentCell);
+        }
+    }
+
+    let allCode = cells
+      .map((cell, index) => getCodeFromCell(cell, index))
+      .join('\n\n')
+      .replace(/'/g, '"');
+
+    return allCode.trim();
+}
+
+
+function createHelpModal() {
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.6)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '10000';
+
+    // Create modal content
+    const modal = document.createElement('div');
+    modal.style.backgroundColor = '#fff';
+    modal.style.padding = '20px 20px 30px 20px';
+    modal.style.borderRadius = '8px';
+    modal.style.maxWidth = '600px';
+    modal.style.width = '90%';
+    modal.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
+    modal.style.fontFamily = 'Arial, sans-serif';
+    modal.style.maxHeight = '80%';
+    modal.style.position = 'relative';
+    modal.style.overflowY = 'auto';
+
+    // Close button (x)
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '&times;';
+    closeBtn.style.position = 'absolute';
+    closeBtn.style.top = '10px';
+    closeBtn.style.right = '15px';
+    closeBtn.style.fontSize = '28px';
+    closeBtn.style.fontWeight = 'bold';
+    closeBtn.style.border = 'none';
+    closeBtn.style.background = 'transparent';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.color = '#555';
+    closeBtn.onmouseover = () => closeBtn.style.color = '#000';
+    closeBtn.onmouseout = () => closeBtn.style.color = '#555';
+
+    // Close function (reusable)
+    function closeModal() {
+        if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+            document.removeEventListener('keydown', handleKey);
+        }
+    }
+    closeBtn.onclick = closeModal;
+
+    // Title
+    const title = document.createElement('h2');
+    title.textContent = 'Help';
+    title.style.marginTop = '0';
+
+    // Keyboard Shortcuts Section
+    const shortcutsTitle = document.createElement('h3');
+    shortcutsTitle.textContent = 'Keyboard Shortcuts';
+    shortcutsTitle.style.marginTop = '20px';
+    shortcutsTitle.style.marginBottom = '10px';
+
+    const shortcutsTable = document.createElement('table');
+    shortcutsTable.style.width = '100%';
+    shortcutsTable.style.borderCollapse = 'collapse';
+    shortcutsTable.style.marginBottom = '20px';
+
+    const shortcuts = [
+        { keys: 'Ctrl+Up Ctrl+Down', description: 'Navigation between cells' },
+        { keys: 'Shift+Enter', description: 'Run cell and move to next' },
+        { keys: 'Ctrl+Enter', description: 'Run cell' },
+        { keys: 'Alt+Enter', description: 'Run cell and insert new cell below' },
+        { keys: 'Alt+A Alt+B', description: 'Insert cell above/below' },
+        { keys: 'Alt+S', description: 'Split cell' },
+        { keys: 'Alt+D', description: 'Delete cell' },
+        { keys: 'Alt+U', description: 'Duplicate cell' },
+        { keys: 'Alt+M', description: 'Convert to markdown cell' },
+        { keys: 'Alt+C', description: 'Convert to code cell' },
+        { keys: 'Alt+Up Alt+Down', description: 'Move cell up/down' },
+        { keys: 'Alt+T', description: 'Tag/Select cell' },
+        { keys: 'Alt+J', description: 'Join selected cells' },
+        { keys: 'Ctrl+Space', description: 'Autocompletion' },
+        { keys: 'Ctrl+/', description: 'Toggle comment (# prefix)' },
+    ];
+
+    shortcuts.forEach(shortcut => {
+        const row = document.createElement('tr');
+        
+        const keysCell = document.createElement('td');
+        keysCell.textContent = shortcut.keys;
+        keysCell.style.padding = '8px';
+        keysCell.style.fontFamily = 'monospace';
+        keysCell.style.fontWeight = 'bold';
+        keysCell.style.borderBottom = '1px solid #eee';
+        keysCell.style.width = '40%';
+        
+        const descCell = document.createElement('td');
+        descCell.textContent = shortcut.description;
+        descCell.style.padding = '8px';
+        descCell.style.borderBottom = '1px solid #eee';
+        
+        row.appendChild(keysCell);
+        row.appendChild(descCell);
+        shortcutsTable.appendChild(row);
+    });
+
+    // Links Section
+    const linksTitle = document.createElement('h3');
+    linksTitle.textContent = 'Helpful Materials (Slovak)';
+    linksTitle.style.marginTop = '20px';
+    linksTitle.style.marginBottom = '10px';
+
+    const list = document.createElement('ul');
+    list.style.paddingLeft = '20px';
+    list.style.margin = '0';
+
+    const links = [
+        { text: 'Notebook User Manual', url: 'https://docs.google.com/document/d/e/2PACX-1vTKGQxS4MhGdYBFHGYsGAc16vJV0aL-DNEcwT5ETWUEN6ikGR4TtZHAy1aw7rNGTzFFPb9l91BasqSM/pub' },
+        { text: 'SageMath: Mathematical Analysis Cheat Sheet', url: 'https://drive.google.com/file/d/1j3UV-MOOJNM_6CNXBJLTaB8dXMsVEdZx/preview' },
+        { text: 'SageMath: Algebra Cheat Sheet', url: 'https://drive.google.com/file/d/1mPK3hbp1ZdHqapRiRwj3JQftBDbaWn03/preview' },
+        { text: 'Markdown and LaTeX Cheat Sheet', url: 'https://drive.google.com/file/d/18iqgfQILf7h7LeRy4cxssYUMaSs2kmXy/preview' }
+    ];
+
+    links.forEach(linkData => {
+        const li = document.createElement('li');
+        li.style.margin = '10px 0';
+        li.style.listStyleType = 'disc';
+        const a = document.createElement('a');
+        a.href = linkData.url;
+        a.textContent = linkData.text;
+        a.target = '_blank';
+        a.style.color = '#007bff';
+        a.style.textDecoration = 'none';
+        a.onmouseover = () => a.style.textDecoration = 'underline';
+        a.onmouseout = () => a.style.textDecoration = 'none';
+        li.appendChild(a);
+        list.appendChild(li);
+    });
+
+    // Attribution footer
+    const footer = document.createElement('div');
+    footer.style.marginTop = '20px';
+    footer.style.paddingTop = '10px';
+    footer.style.borderTop = '1px solid #ccc';
+    footer.style.fontSize = '12px';
+    footer.style.color = '#555';
+    footer.style.textAlign = 'center';
+
+    const footerText = document.createElement('p');
+    footerText.innerHTML = `
+        © 2025 Dominik Borovský & Jozef Hanč. Based on 
+        <a href="https://github.com/ingodahn/nbplayer" target="_blank" style="color: #007bff; text-decoration: none;">nbplayer project</a>, 
+        licensed under 
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" style="color: #007bff; text-decoration: none;">CC-BY-SA 4.0</a>. 
+        Source code: 
+        <a href="https://github.com/JupyterPER/SageMathAINotebooks" target="_blank" style="color: #007bff; text-decoration: none;">GitHub Repository</a>.
+        Powered by
+        <a href="https://sagecell.sagemath.org/" target="_blank" style="color: #007bff; text-decoration: none;">SageMathCell</a>.
+    `;
+    footer.appendChild(footerText);
+
+    modal.appendChild(closeBtn);
+    modal.appendChild(title);
+    modal.appendChild(shortcutsTitle);
+    modal.appendChild(shortcutsTable);
+    modal.appendChild(linksTitle);
+    modal.appendChild(list);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Close modal on overlay click
+    overlay.addEventListener('click', function (event) {
+        if (event.target === overlay) {
+            closeModal();
+        }
+    });
+
+    // Close modal with ESC key
+    function handleKey(event) {
+        if (event.key === "Escape") {
+            closeModal();
+        }
+    }
+    document.addEventListener('keydown', handleKey);
+}
+
+
+// Initialize cells when the page loads
+window.addEventListener('load', initializeCells);
+
+/**
+ * Existing function to extract code from a code cell.
+ * Assumes that codeCell is a DOM element representing a code cell.
+ * cellIndex is the index of the cell in the notebook (0-based).
+ */
+function getCodeFromCell(codeCell, cellIndex) {
+    let code = '';
+
+    // First, try to get code from CodeMirror editor
+    const cmEditor = codeCell.querySelector('.CodeMirror');
+    if (cmEditor && cmEditor.CodeMirror) {
+        code = cmEditor.CodeMirror.getValue();
+    }
+    // If CodeMirror is not available, try to get from textarea
+    else {
+        const textarea = codeCell.querySelector('textarea');
+        if (textarea) {
+            code = textarea.value;
+        }
+        // If neither is available, try to get from pre element
+        else {
+            const preElement = codeCell.querySelector('pre');
+            if (preElement) {
+                code = preElement.textContent;
+            }
+            else {
+                console.warn('Could not find code in cell:', codeCell);
+                return '';
+            }
+        }
+    }
+
+    // Add In[n] prefix
+    return `In[${cellIndex + 1}]:\n${code}`;
+}
+
+
+
+
+function getFormattedDate() {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+
+    return `${year}_${month}_${day}_${hours}_${minutes}_${seconds}`;
+}
+
+
+// ============================================================
+// BASE64 MINIFICATION HELPERS
+// ============================================================
+
+// Pattern that recognises a "minified" line produced by encodeCodeToBase64Line.
+// Tolerant of single OR double quotes around the base64 string.
+const MINIFIED_LINE_REGEX = /^\s*(?:import\s+base64\s*;\s*)?exec\s*\(\s*['"](?:from\s+IPython\.core\.interactiveshell\s+import\s+InteractiveShell\s*;\s*from\s+sage\.repl\.preparse\s+import\s+preparse\s*;\s*)?InteractiveShell\.instance\s*\(\s*\)\s*\.\s*run_cell\s*\(\s*preparse\s*\(\s*base64\.b64decode\s*\(\s*["']([A-Za-z0-9+/=]+)["']\s*\)\s*\.decode\s*\(\s*\)\s*\)\s*\)\s*;\s*None['"]\s*\)\s*$/;
+
+// Encode any code (UTF-8 safe) to a single-line base64 exec() string.
+function encodeCodeToBase64Line(code) {
+    const utf8Bytes = new TextEncoder().encode(code);
+    let binary = '';
+    utf8Bytes.forEach(b => binary += String.fromCharCode(b));
+    const b64 = btoa(binary);
+    return `import base64; exec('from IPython.core.interactiveshell import InteractiveShell; from sage.repl.preparse import preparse; InteractiveShell.instance().run_cell(preparse(base64.b64decode("${b64}").decode())); None')`;
+}
+
+// Decode a single minified line back to the original code. Returns null if not a match.
+function decodeBase64Line(line) {
+    const m = String(line).match(MINIFIED_LINE_REGEX);
+    if (!m) return null;
+    try {
+        const binary = atob(m[1]);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return new TextDecoder().decode(bytes);
+    } catch (e) {
+        console.error('Failed to decode base64 line:', e);
+        return null;
+    }
+}
+
+// Helper: extract code from a single .nb-code-cell (CodeMirror first, then fallbacks).
+function getCodeFromCodeCell(cell) {
+    let code = '';
+    const sagecellCM = cell.querySelector('.sagecell_input .CodeMirror');
+    if (sagecellCM && sagecellCM.CodeMirror) {
+        code = sagecellCM.CodeMirror.getValue();
+    } else {
+        const cm = cell.querySelector('.CodeMirror');
+        if (cm && cm.CodeMirror) {
+            code = cm.CodeMirror.getValue();
+        } else {
+            const script = cell.querySelector('script[type="text/x-sage"]');
+            if (script) code = script.textContent || '';
+        }
+    }
+    return String(code || '').replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+}
+
+// Export all code cells concatenated into a single .sage file.
+// Cells are separated by a "# CODE BLOCK" delimiter line.
+function downloadAllCodeAsSage() {
+    const codeCells = document.querySelectorAll('.nb-code-cell');
+    const blocks = [];
+
+    codeCells.forEach(cell => {
+        const code = getCodeFromCodeCell(cell);
+        if (code.trim()) blocks.push(code);
+    });
+
+    if (blocks.length === 0) {
+        alert('No code cells with content found.');
+        return;
+    }
+
+    const fullCode = blocks.join('\n\n# CODE BLOCK\n\n');
+
+    const baseName = extractFilenameBaseFromH1() || 'SageMath_export';
+    const finalFilename = `${baseName}_${getFormattedDate()}.sage`;
+
+    const blob = new Blob([fullCode], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = finalFilename;
+    document.body.appendChild(link);
+    link.click();
+    URL.revokeObjectURL(url);
+    document.body.removeChild(link);
+}
+
+// A "preserved" comment: starts with `#` followed by an UPPERCASE word (2+ letters).
+// Examples that match: "# NOTE ...", "# TODO fix this", "# WARNING: slow".
+// The "# CODE BLOCK" delimiter also matches, so we check for it FIRST.
+const PRESERVED_COMMENT_REGEX     = /^[ \t]*#[ \t]*[A-Z]{2,}\b/;
+const CODE_BLOCK_DELIMITER_REGEX  = /^[ \t]*#[ \t]*CODE BLOCK[ \t]*$/;
+
+function toggleCellCompression(cell) {
+    const cmEl = cell.querySelector('.sagecell_input .CodeMirror') || cell.querySelector('.CodeMirror');
+    if (!cmEl || !cmEl.CodeMirror) {
+        console.error('CodeMirror instance not found in cell');
+        alert('Could not find code editor in this cell.');
+        return;
+    }
+    const cm = cmEl.CodeMirror;
+    const code = cm.getValue().replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+
+    // ---- Tokenize the cell into a sequence of items ----
+    // Item kinds: 'code' (raw source), 'minified' (already-compressed line),
+    // 'preserved' (UPPERCASE-marker comment), 'delimiter' (# CODE BLOCK line).
+    const lines = code.split('\n');
+    const items = [];
+    let codeBuf = [];
+
+    const flushCode = () => {
+        const text = codeBuf.join('\n').trim();
+        codeBuf = [];
+        if (text) items.push({ type: 'code', content: text });
+    };
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (CODE_BLOCK_DELIMITER_REGEX.test(line)) {
+            flushCode();
+            items.push({ type: 'delimiter' });
+        } else if (PRESERVED_COMMENT_REGEX.test(line)) {
+            flushCode();
+            items.push({ type: 'preserved', content: line });
+        } else if (trimmed !== '' && MINIFIED_LINE_REGEX.test(trimmed)) {
+            flushCode();
+            items.push({ type: 'minified', content: trimmed });
+        } else {
+            codeBuf.push(line);
+        }
+    }
+    flushCode();
+
+    // ---- Decide direction ----
+    const hasCode     = items.some(it => it.type === 'code');
+    const hasMinified = items.some(it => it.type === 'minified');
+
+    let result;
+
+    if (hasMinified && !hasCode) {
+        // ============ DECOMPRESS ============
+        const out = [];
+        let prevWasCodeSection = false;
+
+        for (const it of items) {
+            if (it.type === 'minified') {
+                const decoded = decodeBase64Line(it.content);
+                if (decoded === null) continue;
+                if (prevWasCodeSection) out.push('', '# CODE BLOCK', '');
+                out.push(decoded);
+                prevWasCodeSection = true;
+            } else if (it.type === 'preserved') {
+                if (out.length > 0) out.push('');
+                out.push(it.content);
+                out.push('');
+                prevWasCodeSection = false;
+            } else if (it.type === 'delimiter') {
+                if (prevWasCodeSection) out.push('', '# CODE BLOCK', '');
+                prevWasCodeSection = false;
+            }
+        }
+        result = out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    } else {
+        // ============ COMPRESS ============
+        const out = [];
+        for (const it of items) {
+            if (it.type === 'code') {
+                out.push(encodeCodeToBase64Line(it.content));
+            } else if (it.type === 'preserved' || it.type === 'minified') {
+                out.push(it.content);
+            }
+            // 'delimiter' items are dropped: each block now lives on its own minified line,
+            // so they're naturally separated without needing the marker.
+        }
+        if (out.length === 0) {
+            alert('Cell has no compressible content.');
+            return;
+        }
+        result = out.join('\n');
+    }
+
+    cm.setValue(result);
+    cm.refresh();
+}
+
+// Export all code cells encoded into ONE base64 minified line, saved as .sage.
+function downloadAllCodeAsMinifiedSage() {
+    const codeCells = document.querySelectorAll('.nb-code-cell');
+    const blocks = [];
+
+    codeCells.forEach(cell => {
+        const code = getCodeFromCodeCell(cell);
+        if (code.trim()) blocks.push(code);
+    });
+
+    if (blocks.length === 0) {
+        alert('No code cells with content found.');
+        return;
+    }
+
+    // Join with single newlines so it executes as one continuous script.
+    const fullCode = blocks.join('\n');
+    const minified = encodeCodeToBase64Line(fullCode);
+
+    const baseName = extractFilenameBaseFromH1() || 'SageMath_export';
+    const finalFilename = `${baseName}_${getFormattedDate()}_minified.sage`;
+
+    const blob = new Blob([minified], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = finalFilename;
+    document.body.appendChild(link);
+    link.click();
+    URL.revokeObjectURL(url);
+    document.body.removeChild(link);
+}
+
+function downloadNotebookText() {
+    // Gather the text
+    const notebookContent = collectNotebookText();
+
+    const extractedNameBase = extractFilenameBaseFromH1(); // Use the reusable helper
+    const filenameBase = extractedNameBase || 'SageMath_export'; // Default fallback name for text export
+    const finalFilename = `${filenameBase}_${getFormattedDate()}.txt`; // Append timestamp and extension
+
+    // Create a Blob from the text
+    const blob = new Blob([notebookContent], {type: 'text/plain'});
+    const url = URL.createObjectURL(blob);
+
+    // Create a temporary link to automatically download the file
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = finalFilename
+    document.body.appendChild(link);
+    link.click();
+
+    // Clean up
+    URL.revokeObjectURL(url);
+    document.body.removeChild(link);
+}
+
+
+
+/**
+ * Main function to read and import text file data, then re-create cells in order.
+ * @param {File} file - The text file object (from an <input type="file">, etc.)
+ */
+function importNotebookFromFile(file) {
+    const reader = new FileReader();
+    reader.addEventListener('load', event => {
+        const fileContent = event.target.result;
+        restoreNotebookFromText(fileContent);
+        // Delay before the first reprocessing
+        setTimeout(() => {
+            reprocessNotebook();
+            // Delay before the second reprocessing
+            setTimeout(() => {
+                reprocessNotebook();
+            }, 1000); // 1000 ms delay between the first and second reprocessing
+        }, 1000); // 1000 ms delay before the first reprocessing
+    });
+    reader.readAsText(file);
+}
+
+/**
+ * Parse the text content and restore cells into #notebook-container in sequence.
+ * @param {string} text - The text of the notebook_export_current_date.txt file (beta version)
+ */
+
+function restoreNotebookFromText(text) {
+    // Find the container for appending cells
+    const container = document.querySelector('.nb-worksheet');
+    if (!container) {
+        console.error('Could not find #notebook-container');
+        return;
+    }
+
+    // Ask the user if they want to wipe out all previous content
+    const shouldWipe = confirm("Do you want to wipe out all the previous content before loading the notebook?");
+    if (shouldWipe) {
+        // Clear the container
+        container.innerHTML = "";
+    }
+
+    // Split blocks by our separator:
+    const cellBlocks = text.split('@=================\n');
+
+    cellBlocks.forEach(block => {
+        const lines = block.split('\n');
+        // The first line should have either "@Markdown[x]:" or "@In[x]:"
+        const header = lines[0] || '';
+        // Everything after the first line is the cell's content
+        const content = lines.slice(1).join('\n');
+
+        if (header.startsWith('@Markdown[')) {
+            // Rebuild a Markdown cell with CodeMirror
+            const mdCell = createMarkdownCell(content);
+            container.appendChild(mdCell);
+        } else if (header.startsWith('@In[')) {
+            // Rebuild a Code cell
+            const codeCell = createCodeCell(content.replace(/[\u200B]/g, ''));
+            container.appendChild(codeCell);
+            addControlBar(codeCell);
+        } else {
+            console.warn(`Unrecognized cell header format: "${header}"`);
+        }
+    });
+}
+
+
+// New function to import an Excel file, convert it to JSON, and load it into the current code cell
+function importExcelJsonToCell(cell) {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    // Accept only Excel files
+    fileInput.accept = '.xlsx,.xls';
+    fileInput.style.display = 'none';
+
+    fileInput.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = e.target.result;
+            try {
+                // Using SheetJS (XLSX) library to parse the file
+                const workbook = XLSX.read(data, { type: 'binary' });
+                // Get the first worksheet
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                // Convert the worksheet to JSON (array of arrays)
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                // Format and load the resulting JSON into the code cell
+                formatAndLoadExcelJsonIntoCell(cell, jsonData);
+            } catch (error) {
+                console.error("Error converting Excel to JSON:", error);
+                alert("Failed to convert Excel file to JSON.");
+            }
+        };
+        reader.readAsBinaryString(file);
+    });
+
+    document.body.appendChild(fileInput);
+    fileInput.click();
+    document.body.removeChild(fileInput);
+}
+
+// Updated function to format and load Excel JSON data into cell (compact format)
+function formatAndLoadExcelJsonIntoCell(cell, jsonData) {
+    const jsonString = JSON.stringify(jsonData);
+    const formattedCode = `# Change dataframe_name if needed ('df' is for default). Apart from dataframe_name it is NOT RECOMMENDED to touch other parts of this code.
+dataframe_name = "df"
+import pandas as pd, json
+data_raw = r'${jsonString}'; data_json = json.loads(data_raw)
+globals()[dataframe_name] = pd.DataFrame(data_json[1:], columns=data_json[0]); print(f"DataFrame '{dataframe_name}' created | Shape: {globals()[dataframe_name].shape} | Columns: {list(globals()[dataframe_name].columns)}")`;
+
+    const codeMirrorElem = cell.querySelector('.CodeMirror');
+    if (codeMirrorElem && codeMirrorElem.CodeMirror) {
+        const codeMirror = codeMirrorElem.CodeMirror;
+        codeMirror.setValue(formattedCode);
+        // Automatically click the execute button if available
+        const executeButton = cell.querySelector('.sagecell_evalButton.ui-button.ui-corner-all.ui-widget');
+        if (executeButton) {
+            executeButton.click();
+        } else {
+            console.error('Execute button not found in cell.');
+        }
+    } else {
+        console.error('CodeMirror instance not found in cell.');
+    }
+}
+
+// NEW FUNCTION: Open a popup window that lets the user choose to Import, Export, or Edit Excel/CSV data.
+function openExcelImportExportDialog(cell) {
+    // Create a modal overlay
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'excelImportExportModal';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.zIndex = '10000';
+
+    // Create modal content container
+    const modalContent = document.createElement('div');
+    modalContent.style.backgroundColor = '#fff';
+    modalContent.style.padding = '30px';
+    modalContent.style.borderRadius = '8px';
+    modalContent.style.minWidth = '350px';
+    modalContent.style.textAlign = 'center';
+    modalContent.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
+
+    // Title
+    const title = document.createElement('h3');
+    title.textContent = 'Data Options';
+    title.style.marginTop = '0';
+    title.style.marginBottom = '20px';
+    title.style.borderBottom = '2px solid var(--main-color, #4CAF50)';
+    title.style.paddingBottom = '10px';
+    modalContent.appendChild(title);
+
+    // Instruction
+    const instruction = document.createElement('p');
+    instruction.textContent = 'Choose an action:';
+    instruction.style.marginBottom = '20px';
+    instruction.style.color = '#666';
+    modalContent.appendChild(instruction);
+
+    // Import Excel button
+    const importExcelBtn = document.createElement('button');
+    importExcelBtn.textContent = 'Import Excel (.xlsx)';
+    importExcelBtn.style.display = 'block';
+    importExcelBtn.style.width = '100%';
+    importExcelBtn.style.margin = '8px 0';
+    importExcelBtn.style.padding = '12px';
+    importExcelBtn.style.border = 'none';
+    importExcelBtn.style.borderRadius = '4px';
+    importExcelBtn.style.backgroundColor = 'var(--main-color, #4CAF50)';
+    importExcelBtn.style.color = 'white';
+    importExcelBtn.style.fontSize = '14px';
+    importExcelBtn.style.cursor = 'pointer';
+    importExcelBtn.style.transition = 'background-color 0.2s';
+    importExcelBtn.onmouseover = () => { importExcelBtn.style.backgroundColor = '#45a049'; };
+    importExcelBtn.onmouseout = () => { importExcelBtn.style.backgroundColor = 'var(--main-color, #4CAF50)'; };
+    importExcelBtn.onclick = function () {
+        document.body.removeChild(modal);
+        importExcelJsonToCell(cell);
+    };
+    modalContent.appendChild(importExcelBtn);
+
+    // Import CSV button
+    const importCsvBtn = document.createElement('button');
+    importCsvBtn.textContent = 'Import CSV (.csv)';
+    importCsvBtn.style.display = 'block';
+    importCsvBtn.style.width = '100%';
+    importCsvBtn.style.margin = '8px 0';
+    importCsvBtn.style.padding = '12px';
+    importCsvBtn.style.border = 'none';
+    importCsvBtn.style.borderRadius = '4px';
+    importCsvBtn.style.backgroundColor = 'var(--main-color, #4CAF50)';
+    importCsvBtn.style.color = 'white';
+    importCsvBtn.style.fontSize = '14px';
+    importCsvBtn.style.cursor = 'pointer';
+    importCsvBtn.style.transition = 'background-color 0.2s';
+    importCsvBtn.onmouseover = () => { importCsvBtn.style.backgroundColor = '#45a049'; };
+    importCsvBtn.onmouseout = () => { importCsvBtn.style.backgroundColor = 'var(--main-color, #4CAF50)'; };
+    importCsvBtn.onclick = function () {
+        document.body.removeChild(modal);
+        importCsvToCell(cell);
+    };
+    modalContent.appendChild(importCsvBtn);
+
+    // Edit button
+    const editBtn = document.createElement('button');
+    editBtn.textContent = 'Edit Data';
+    editBtn.style.display = 'block';
+    editBtn.style.width = '100%';
+    editBtn.style.margin = '8px 0';
+    editBtn.style.padding = '12px';
+    editBtn.style.border = 'none';
+    editBtn.style.borderRadius = '4px';
+    editBtn.style.backgroundColor = '#2196F3';
+    editBtn.style.color = 'white';
+    editBtn.style.fontSize = '14px';
+    editBtn.style.cursor = 'pointer';
+    editBtn.style.transition = 'background-color 0.2s';
+    editBtn.onmouseover = () => { editBtn.style.backgroundColor = '#0b7dda'; };
+    editBtn.onmouseout = () => { editBtn.style.backgroundColor = '#2196F3'; };
+    editBtn.onclick = function () {
+        document.body.removeChild(modal);
+        openExcelEditorDialog(cell);
+    };
+    modalContent.appendChild(editBtn);
+
+    // Export Excel button
+    const exportExcelBtn = document.createElement('button');
+    exportExcelBtn.textContent = 'Export as Excel (.xlsx)';
+    exportExcelBtn.style.display = 'block';
+    exportExcelBtn.style.width = '100%';
+    exportExcelBtn.style.margin = '8px 0';
+    exportExcelBtn.style.padding = '12px';
+    exportExcelBtn.style.border = 'none';
+    exportExcelBtn.style.borderRadius = '4px';
+    exportExcelBtn.style.backgroundColor = '#4CAF50';
+    exportExcelBtn.style.color = 'white';
+    exportExcelBtn.style.fontSize = '14px';
+    exportExcelBtn.style.cursor = 'pointer';
+    exportExcelBtn.style.transition = 'background-color 0.2s';
+    exportExcelBtn.onmouseover = () => { exportExcelBtn.style.backgroundColor = '#45a049'; };
+    exportExcelBtn.onmouseout = () => { exportExcelBtn.style.backgroundColor = '#4CAF50'; };
+    exportExcelBtn.onclick = function () {
+        document.body.removeChild(modal);
+        exportExcelJsonFromCell(cell);
+    };
+    modalContent.appendChild(exportExcelBtn);
+
+    // Export CSV button
+    const exportCsvBtn = document.createElement('button');
+    exportCsvBtn.textContent = 'Export as CSV (.csv)';
+    exportCsvBtn.style.display = 'block';
+    exportCsvBtn.style.width = '100%';
+    exportCsvBtn.style.margin = '8px 0';
+    exportCsvBtn.style.padding = '12px';
+    exportCsvBtn.style.border = 'none';
+    exportCsvBtn.style.borderRadius = '4px';
+    exportCsvBtn.style.backgroundColor = '#4CAF50';
+    exportCsvBtn.style.color = 'white';
+    exportCsvBtn.style.fontSize = '14px';
+    exportCsvBtn.style.cursor = 'pointer';
+    exportCsvBtn.style.transition = 'background-color 0.2s';
+    exportCsvBtn.onmouseover = () => { exportCsvBtn.style.backgroundColor = '#45a049'; };
+    exportCsvBtn.onmouseout = () => { exportCsvBtn.style.backgroundColor = '#4CAF50'; };
+    exportCsvBtn.onclick = function () {
+        document.body.removeChild(modal);
+        exportCsvFromCell(cell);
+    };
+    modalContent.appendChild(exportCsvBtn);
+
+    // Cancel button
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.display = 'block';
+    cancelBtn.style.width = '100%';
+    cancelBtn.style.margin = '15px 0 0 0';
+    cancelBtn.style.padding = '10px';
+    cancelBtn.style.border = 'none';
+    cancelBtn.style.borderRadius = '4px';
+    cancelBtn.style.backgroundColor = '#e74c3c';
+    cancelBtn.style.color = 'white';
+    cancelBtn.style.fontSize = '14px';
+    cancelBtn.style.cursor = 'pointer';
+    cancelBtn.style.transition = 'background-color 0.2s';
+    cancelBtn.onmouseover = () => { cancelBtn.style.backgroundColor = '#c0392b'; };
+    cancelBtn.onmouseout = () => { cancelBtn.style.backgroundColor = '#e74c3c'; };
+    cancelBtn.onclick = function () {
+        document.body.removeChild(modal);
+    };
+    modalContent.appendChild(cancelBtn);
+
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+}
+
+// NEW FUNCTION: Open a modal editor with DataGrid XL to let the user edit Excel JSON data
+function openExcelEditorDialog(cell) {
+    // Try to extract JSON data from the cell
+    const codeMirrorElem = cell.querySelector('.CodeMirror');
+    let codeContent = "";
+    if (codeMirrorElem && codeMirrorElem.CodeMirror) {
+        codeContent = codeMirrorElem.CodeMirror.getValue();
+    } else {
+        codeContent = cell.textContent;
+    }
+
+    // Extract dataframe name (default to 'df')
+    const dfNameRegex = /dataframe_name\s*=\s*["']([^"']+)["']/;
+    const dfNameMatch = codeContent.match(dfNameRegex);
+    let dataframeName = dfNameMatch ? dfNameMatch[1] : 'df';
+
+    // Extract JSON data
+    const regex = /data_raw\s*=\s*r'([^']*)'/;
+    let jsonData;
+    const match = codeContent.match(regex);
+
+    if (match && match[1]) {
+        try {
+            jsonData = JSON.parse(match[1]);
+        } catch (error) {
+            console.error("Error parsing JSON data from cell:", error);
+            alert("Failed to parse existing JSON data. Starting with an empty table.");
+            jsonData = [["Column1", "Column2"], ["", ""]];
+        }
+    } else {
+        // If no JSON found, initialize with a default header and one empty row
+        jsonData = [["Column1", "Column2"], ["", ""]];
+    }
+
+    // Create a modal overlay for the editor
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'excelEditorModal';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.zIndex = '11000';
+
+    const modalContent = document.createElement('div');
+    modalContent.style.backgroundColor = '#fff';
+    modalContent.style.padding = '20px';
+    modalContent.style.borderRadius = '5px';
+    modalContent.style.width = '90%';
+    modalContent.style.maxWidth = '1000px';
+    modalContent.style.height = '85%';
+    modalContent.style.display = 'flex';
+    modalContent.style.flexDirection = 'column';
+    modalContent.style.textAlign = 'center';
+
+    const title = document.createElement('h3');
+    title.textContent = 'Edit Data - DataGrid XL';
+    title.style.marginTop = '0';
+    modalContent.appendChild(title);
+
+    // Create DataFrame name input section
+    const dfNameContainer = document.createElement('div');
+    dfNameContainer.style.marginBottom = '10px';
+    dfNameContainer.style.display = 'flex';
+    dfNameContainer.style.alignItems = 'center';
+    dfNameContainer.style.justifyContent = 'center';
+    dfNameContainer.style.gap = '10px';
+
+    const dfNameLabel = document.createElement('label');
+    dfNameLabel.textContent = 'DataFrame Name:';
+    dfNameLabel.style.fontWeight = 'bold';
+    dfNameLabel.style.fontSize = '14px';
+
+    const dfNameInput = document.createElement('input');
+    dfNameInput.type = 'text';
+    dfNameInput.value = dataframeName;
+    dfNameInput.placeholder = 'df';
+    dfNameInput.style.padding = '5px 10px';
+    dfNameInput.style.fontSize = '14px';
+    dfNameInput.style.border = '1px solid #ddd';
+    dfNameInput.style.borderRadius = '4px';
+    dfNameInput.style.width = '150px';
+    dfNameInput.id = 'dataframe-name-input';
+
+    dfNameContainer.appendChild(dfNameLabel);
+    dfNameContainer.appendChild(dfNameInput);
+    modalContent.appendChild(dfNameContainer);
+
+    // Create container for DataGrid XL
+    const gridContainer = document.createElement('div');
+    gridContainer.id = 'datagridxl-container';
+    gridContainer.style.flex = '1';
+    gridContainer.style.margin = '10px 0';
+    gridContainer.style.border = '1px solid #ddd';
+    modalContent.appendChild(gridContainer);
+
+    // Create button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.marginTop = '10px';
+
+    // Save button
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save Changes';
+    saveBtn.style.margin = '0 5px';
+    saveBtn.style.padding = '8px 16px';
+    saveBtn.style.backgroundColor = 'var(--main-color, #4CAF50)';
+    saveBtn.style.color = 'white';
+    saveBtn.style.border = 'none';
+    saveBtn.style.borderRadius = '4px';
+    saveBtn.style.cursor = 'pointer';
+
+    // Cancel button
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.margin = '0 5px';
+    cancelBtn.style.padding = '8px 16px';
+    cancelBtn.style.backgroundColor = '#e74c3c';
+    cancelBtn.style.color = 'white';
+    cancelBtn.style.border = 'none';
+    cancelBtn.style.borderRadius = '4px';
+    cancelBtn.style.cursor = 'pointer';
+
+    buttonContainer.appendChild(saveBtn);
+    buttonContainer.appendChild(cancelBtn);
+    modalContent.appendChild(buttonContainer);
+
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+
+    // Initialize DataGrid XL with Excel-style column headers
+    let grid;
+    try {
+        // Generate column headers as letters (A, B, C, etc.)
+        const numColumns = jsonData[0] ? jsonData[0].length : 2;
+        const columns = [];
+        
+        for (let i = 0; i < numColumns; i++) {
+            const columnLetter = String.fromCharCode(65 + (i % 26)); // A-Z
+            const columnSuffix = i >= 26 ? Math.floor(i / 26) : ''; // AA, AB, etc. for >26 columns
+            columns.push({
+                title: columnLetter + columnSuffix,
+                source: i,
+                width: 150
+            });
+        }
+
+        grid = new DataGridXL("datagridxl-container", {
+            data: jsonData,
+            editable: true,
+            width: '100%',
+            height: '100%',
+            columns: columns,
+            columnHeaders: true,
+            rowHeaders: true,
+            allowInsertRow: true,
+            allowDeleteRow: true,
+            allowInsertColumn: true,
+            allowDeleteColumn: true
+        });
+    } catch (error) {
+        console.error("Error initializing DataGrid XL:", error);
+        alert("Failed to load DataGrid XL editor. Please ensure the script is loaded.");
+        document.body.removeChild(modal);
+        return;
+    }
+
+    // Save button click handler
+    saveBtn.onclick = function () {
+        // Get data from DataGrid XL
+        const updatedData = grid.getData();
+        
+        // Get dataframe name from input
+        const newDataframeName = document.getElementById('dataframe-name-input').value.trim() || 'df';
+
+        // Convert the updated data to a formatted JSON string
+        const newJsonString = JSON.stringify(updatedData);
+
+        // Create the formatted code block with the updated JSON string and dataframe name
+        const formattedCode = `# Change dataframe_name if needed ('df' is for default). Apart from dataframe_name it is NOT RECOMMENDED to touch other parts of this code.
+dataframe_name = "${newDataframeName}"
+import pandas as pd, json
+data_raw = r'${newJsonString}'; data_json = json.loads(data_raw)
+globals()[dataframe_name] = pd.DataFrame(data_json[1:], columns=data_json[0]); print(f"DataFrame '{dataframe_name}' created | Shape: {globals()[dataframe_name].shape} | Columns: {list(globals()[dataframe_name].columns)}")`;
+
+        // Update the code cell via CodeMirror
+        const cmElem = cell.querySelector('.CodeMirror');
+        if (cmElem && cmElem.CodeMirror) {
+            cmElem.CodeMirror.setValue(formattedCode);
+            // Optionally trigger the execute button
+            const executeButton = cell.querySelector('.sagecell_evalButton.ui-button.ui-corner-all.ui-widget');
+            if (executeButton) {
+                executeButton.click();
+            }
+        } else {
+            console.error("CodeMirror instance not found in cell.");
+        }
+        document.body.removeChild(modal);
+    };
+
+    // Cancel button click handler
+    cancelBtn.onclick = function () {
+        document.body.removeChild(modal);
+    };
+}
+
+
+function exportExcelJsonFromCell(cell) {
+    const codeMirrorElem = cell.querySelector('.CodeMirror');
+    let codeContent = "";
+    if (codeMirrorElem && codeMirrorElem.CodeMirror) {
+        codeContent = codeMirrorElem.CodeMirror.getValue();
+    } else {
+        codeContent = cell.textContent;
+    }
+
+    // Extract the JSON data from the compact format: data_raw = r'...'
+    const regex = /data_raw\s*=\s*r'([^']*)'/;
+    const match = codeContent.match(regex);
+    
+    if (match && match[1]) {
+        const jsonString = match[1];
+        try {
+            const jsonData = JSON.parse(jsonString);
+            // Create a new workbook and worksheet using SheetJS (XLSX)
+            var wb = XLSX.utils.book_new();
+            var ws = XLSX.utils.aoa_to_sheet(jsonData);
+            XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+            // Write the workbook to a binary string
+            var wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+            // Helper function to convert a binary string to an ArrayBuffer
+            function s2ab(s) {
+                var buf = new ArrayBuffer(s.length);
+                var view = new Uint8Array(buf);
+                for (var i = 0; i < s.length; i++) {
+                    view[i] = s.charCodeAt(i) & 0xFF;
+                }
+                return buf;
+            }
+            // Use FileSaver to prompt a download of the workbook as an XLSX file
+            saveAs(new Blob([s2ab(wbout)], { type: "application/octet-stream" }), "exported_data.xlsx");
+        } catch (error) {
+            console.error("Error parsing JSON data:", error);
+            alert("Failed to parse JSON data from the cell.");
+        }
+    } else {
+        alert("No Excel JSON data found in the selected cell.");
+    }
+}
+
+// NEW FUNCTION: Import CSV file and convert to JSON format for the cell
+function importCsvToCell(cell) {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.csv,text/csv';
+    fileInput.style.display = 'none';
+
+    fileInput.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const csvText = e.target.result;
+            try {
+                // Parse CSV to array of arrays
+                const jsonData = parseCsvToArray(csvText);
+                // Format and load the resulting data into the code cell
+                formatAndLoadExcelJsonIntoCell(cell, jsonData);
+            } catch (error) {
+                console.error("Error converting CSV to JSON:", error);
+                alert("Failed to convert CSV file. Please check the file format.");
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    document.body.appendChild(fileInput);
+    fileInput.click();
+    document.body.removeChild(fileInput);
+}
+
+// Helper function to parse CSV text to array of arrays
+function parseCsvToArray(csvText) {
+    const lines = csvText.split(/\r\n|\n/);
+    const result = [];
+    
+    for (let line of lines) {
+        if (line.trim() === '') continue;
+        
+        // Handle CSV parsing with quotes and commas
+        const row = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            
+            if (char === '"') {
+                if (inQuotes && line[i + 1] === '"') {
+                    current += '"';
+                    i++; // Skip next quote
+                } else {
+                    inQuotes = !inQuotes;
+                }
+            } else if (char === ';' && !inQuotes) {
+                row.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        row.push(current.trim());
+        result.push(row);
+    }
+    
+    return result;
+}
+
+// NEW FUNCTION: Export data from cell as CSV file
+function exportCsvFromCell(cell) {
+    const codeMirrorElem = cell.querySelector('.CodeMirror');
+    let codeContent = "";
+    if (codeMirrorElem && codeMirrorElem.CodeMirror) {
+        codeContent = codeMirrorElem.CodeMirror.getValue();
+    } else {
+        codeContent = cell.textContent;
+    }
+
+    // Extract the JSON data from the compact format: data_raw = r'...'
+    const regex = /data_raw\s*=\s*r'([^']*)'/;
+    const match = codeContent.match(regex);
+
+    if (match && match[1]) {
+        const jsonString = match[1];
+        try {
+            const jsonData = JSON.parse(jsonString);
+            
+            // Convert array of arrays to CSV format
+            const csvContent = convertArrayToCsv(jsonData);
+            
+            // Create and download CSV file
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            // Generate filename with timestamp
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `exported_data_${timestamp}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error("Error parsing JSON data:", error);
+            alert("Failed to parse JSON data from the cell.");
+        }
+    } else {
+        alert("No Excel/CSV data found in the selected cell.");
+    }
+}
+
+// Helper function to convert array of arrays to CSV format
+function convertArrayToCsv(data) {
+    return data.map(row => {
+        return row.map(field => {
+            // Escape quotes and wrap in quotes if contains comma or quotes
+            const escaped = String(field).replace(/"/g, '""');
+            if (escaped.includes(',') || escaped.includes('"') || escaped.includes('\n')) {
+                return `"${escaped}"`;
+            }
+            return escaped;
+        }).join(';');
+    }).join('\n');
+}
+
+
+function toggleMarkdownTips(cell) {
+    let tipsPanel = cell.querySelector('.inline-markdown-tips');
+    if (tipsPanel) {
+        // Remove the tips panel if it exists
+        tipsPanel.remove();
+    } else {
+        // Create the tips panel if it doesn't exist.
+        tipsPanel = document.createElement('div');
+        tipsPanel.className = 'inline-markdown-tips';
+        tipsPanel.style.border = '1px solid #ccc';
+        tipsPanel.style.backgroundColor = '#f9f9f9';
+        tipsPanel.style.padding = '8px';
+        tipsPanel.style.marginTop = '5px';
+        tipsPanel.style.fontSize = '12px';
+        tipsPanel.innerHTML = `
+      <strong>Markdown Tips:</strong>
+      <ul style="padding-left:16px; margin:5px 0;">
+        <li>Use <code>*asterisks*</code> for <em>italics</em>.</li>
+        <li>Use <code>**double asterisks**</code> for <strong>bold</strong> text.</li>
+        <li>Start lines with <code>#</code> for headers (e.g. <code># Header1</code> or <code>## Header2</code>).</li>
+        <li>Use <code>-</code> or <code>*</code> for list items.</li>
+        <li>Insert <code>![alt text for figure](url or path to figure)</code> for inserting figures. Examples:</li>
+        <ul style="padding-left:16px; margin:5px 0;">
+            <li><code>![Figure 1](https://i.postimg.cc/jdThVHFH/elastic-pendulum.png)</code> for figures from online source.</li>
+            <li><code>![Figure 2](elastic-pendulum.png)</code> for locally stored figures (in the same directory as this notebook).</li>
+          </ul>
+        <li>Use <code>\`code\`</code> for inline code.</li>
+        <li>
+          Use <code>$...$</code> for inline LaTeX formulas. Examples:
+          <ul style="padding-left:16px; margin:5px 0;">
+            <li><code>$x^2$</code>, <code>$x^{2+i}$</code>, <code>$x_1$</code>, <code>$x_{n+1}$</code> for superscripts and subscripts.</li>
+            <li><code>$\\frac{a}{b}$</code>, <code>$\\dfrac{a}{b}$</code>, <code>$a \\cdot b$</code> for fractions and multiplications.</li>
+            <li><code>$\\alpha \\beta \\gamma \\Gamma \\rho \\phi \\Phi \\varphi \\omega \\Omega$</code> for lowercase and uppercase greek letters.</li>
+            <li><code>$\\sin \\cos \\tan \\exp \\ln$</code> for some elementary functions.</li>
+            <li><code>$A \\! B \\, C \\:D \\; E \\ F \\quad G \\qquad H \\hspace{1cm} I ~ J$</code> for various types of spaces.</li>
+            <li><code>$a=3~\\mathrm{m \\cdot s^{-2}}$</code> for physical quantities.</li>
+          </ul>
+        </li>
+        <li>
+          Use <code>$$...$$</code> for display math formulas.
+        </li>
+      </ul>
+    `;
+        // Insert the tips panel just after the control bar (assumed to be the first child).
+        cell.insertBefore(tipsPanel, cell.children[1] || null);
+    }
+}
+
+// Code Mirror
+function convertToMarkdown(codeCell) {
+    // Extract all lines of text from the code cell
+    let codeText = '';
+
+    // Try different ways to get the code content
+    const codeMirrorInstance = codeCell.querySelector('.CodeMirror');
+    if (codeMirrorInstance && codeMirrorInstance.CodeMirror) {
+        // If there's a CodeMirror instance, get the value directly
+        codeText = codeMirrorInstance.CodeMirror.getValue();
+    } else {
+        // Otherwise, try to extract from the DOM elements
+        const codeLines = codeCell.querySelectorAll(".CodeMirror-code > div > pre > span");
+        if (codeLines && codeLines.length > 0) {
+            codeText = Array.from(codeLines)
+                .map(line => line.textContent)
+                .join('\n');
+        } else {
+            // Fallback method: try to get text from the input or a script element
+            const input = codeCell.querySelector('.sagecell_input textarea');
+            if (input) {
+                codeText = input.value;
+            } else {
+                const scriptElem = codeCell.querySelector('script[type="text/x-sage"]');
+                if (scriptElem) {
+                    codeText = scriptElem.textContent;
+                }
+            }
+        }
+    }
+
+    // Clean up zero-width spaces and other invisible characters
+    codeText = codeText
+        .replace(/[\u200B\u200C\u200D\uFEFF]/g, '') // Remove zero-width characters
+        .replace(/\u00A0/g, ' '); // Replace non-breaking spaces with regular spaces
+
+    // Create a unique ID for this editor
+    const uid = Date.now() + '-' + (++mdCellIdCounter);
+    const editorId = 'md-editor-' + uid;
+    const previewId = 'preview-' + uid;
+
+    // Create the markdown cell structure (textarea left EMPTY on purpose,
+    // content is assigned safely via .value below)
+    const markdownCell = document.createElement('div');
+    markdownCell.className = 'nb-cell nb-markdown-cell';
+    markdownCell.innerHTML = `
+        <div class="editor-container" style="position: relative;">
+            <textarea id="${editorId}" placeholder="Enter your Markdown or HTML here" 
+                      style="width: 100%; height:150px; font-family: Consolas, 'Courier New', monospace;" 
+                      data-original=""></textarea>
+        </div>
+        <div id="${previewId}" class="markdown-preview"><p><em></em></p></div>
+    `;
+
+    // Replace the code cell with the new markdown cell
+    codeCell.parentNode.replaceChild(markdownCell, codeCell);
+
+    // Get the textarea element and assign content safely via DOM property
+    const textarea = markdownCell.querySelector(`#${editorId}`);
+    textarea.value = codeText;
+    textarea.setAttribute('data-original', codeText);
+
+    // Initialize CodeMirror on the textarea
+    const editor = CodeMirror.fromTextArea(textarea, {
+        mode: 'markdown',
+        lineNumbers: true,
+        lineWrapping: true,
+        theme: 'default',
+        extraKeys: {
+            "Ctrl-Space": "autocomplete",
+            "Ctrl-/": "toggleComment",   
+            "Cmd-/": "toggleComment"
+        },
+        autoCloseBrackets: true,
+        matchBrackets: true,
+        foldGutter: true,
+        gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+        highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
+    });
+
+    // Set initial height and save it to the element for reference
+    editor.setSize(null, null);
+    markdownCell.querySelector('.CodeMirror').setAttribute('data-original-height', '150px');
+
+    // Store the CodeMirror instance on the cell for later access
+    markdownCell.cmEditor = editor;
+
+    // Set up real-time preview updates
+    editor.on('change', () => {
+        renderMarkdownWithCM(editor, markdownCell.querySelector(`#${previewId}`));
+    });
+
+    // Trigger initial render
+    renderMarkdownWithCM(editor, markdownCell.querySelector(`#${previewId}`));
+
+    // Hide the editor initially (consistent with your existing functionality)
+    markdownCell.querySelector('.CodeMirror').style.display = 'block';
+    markdownCell.querySelector(`#${previewId}`).style.display = 'block';
+
+    removeControlBar(markdownCell);
+    // Add control bar
+    addControlBar(markdownCell);
+    reprocessNotebook();
+}
+
+// Ensure we have this helper function for rendering
+function renderMarkdownWithCM(editor, previewElement) {
+    // Get content and clean it of zero-width spaces
+    const content = editor.getValue().replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+
+    // Use texme if available, otherwise fallback to basic HTML
+    if (typeof texme !== 'undefined' && texme.render) {
+        previewElement.innerHTML = texme.render(content);
+    } else if (typeof marked !== 'undefined') {
+        previewElement.innerHTML = marked.parse(content);
+    } else {
+        previewElement.innerHTML = `<p>${content}</p>`;
+    }
+
+    // Ensure all hyperlinks in the preview open in a new tab
+    previewElement.querySelectorAll('a').forEach(link => {
+        link.setAttribute('target', '_blank');
+        link.setAttribute('rel', 'noopener noreferrer');
+    });
+
+    // Render LaTeX if available
+    if (typeof renderMathInElement !== 'undefined') {
+        renderMathInElement(previewElement, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$', right: '$', display: false}
+            ],
+            throwOnError: false
+        });
+    } else if (window.MathJax) {
+        window.MathJax.texReset();
+        window.MathJax.typesetPromise([previewElement]);
+    }
+}
+
+// Counter to guarantee unique editor IDs even when many cells are created
+// within the same millisecond (bulk restore, undo/redo, import).
+let mdCellIdCounter = 0;
+
+function createMarkdownCell(content = '') {
+    // Create a unique ID for this editor
+    const uid = Date.now() + '-' + (++mdCellIdCounter);
+    const editorId = 'md-editor-' + uid;
+    const previewId = 'preview-' + uid;
+
+    const initialContent = content;
+    const markdownCell = document.createElement('div');
+    markdownCell.className = 'nb-cell nb-markdown-cell';
+    markdownCell.innerHTML = `
+        <div class="editor-container">
+            <textarea id="${editorId}" placeholder="Enter your Markdown or HTML here" 
+                      class="markdown-textarea"
+                      data-original=""></textarea>
+        </div>
+        <div id="${previewId}" class="markdown-preview"></div>
+    `;
+
+    // Set the content via DOM properties, NEVER via innerHTML interpolation.
+    // This prevents corruption when the content contains "</textarea>",
+    // "<script>", HTML entities, etc.
+    const initialTextarea = markdownCell.querySelector('textarea');
+    initialTextarea.value = initialContent;
+    initialTextarea.setAttribute('data-original', initialContent);
+
+    // Initialize CodeMirror after the element is in the DOM
+    setTimeout(() => {
+        const textarea = markdownCell.querySelector(`#${editorId}`);
+
+        // Guard: the cell may have been removed again before this ran (undo/redo)
+        if (!textarea || !markdownCell.isConnected) return;
+
+        // Initialize CodeMirror on the textarea
+        const editor = CodeMirror.fromTextArea(textarea, {
+            mode: 'markdown',
+            lineNumbers: true,
+            lineWrapping: true,
+            theme: 'default',
+            extraKeys: {
+                "Ctrl-Space": "autocomplete",
+                "Ctrl-/": "toggleComment",   
+                "Cmd-/": "toggleComment"
+            },
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            foldGutter: true,
+            gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+            highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
+        });
+
+        // Store the CodeMirror instance on the cell for later access
+        markdownCell.cmEditor = editor;
+
+        // Set up real-time preview updates
+        editor.on('change', () => {
+            renderMarkdownWithCM(editor, markdownCell.querySelector(`#${previewId}`));
+        });
+
+        // Initial render
+        renderMarkdownWithCM(editor, markdownCell.querySelector(`#${previewId}`));
+
+        // Set display based on global edit mode
+        const cmElement = markdownCell.querySelector('.CodeMirror');
+        const preview = markdownCell.querySelector(`#${previewId}`);
+
+        if (typeof editMode !== 'undefined' && editMode) {
+            // Edit mode: show both editor and preview
+            cmElement.style.display = 'block';
+            preview.style.display = 'block';
+        } else {
+            // View mode: hide editor, show preview
+            cmElement.style.display = 'none';
+            preview.style.display = 'block';
+
+            // Add a special class to help style empty cell previews
+            if (!content) {
+                preview.classList.add('empty-markdown-preview');
+            }
+        }
+
+        // Add control bar
+        addControlBar(markdownCell);
+
+        // Add click handler to easily edit empty cells by clicking on them
+        if (!content) {
+            preview.addEventListener('click', function(e) {
+                if (preview.classList.contains('empty-markdown-preview')) {
+                    toggleSingleCellEditMode(markdownCell);
+                    e.preventDefault();
+                    // Remove the empty class once it's been clicked
+                    preview.classList.remove('empty-markdown-preview');
+                }
+            });
+        }
+    }, 0);
+
+    return markdownCell;
+}
+
+
+function updateMarkdownPreview(cell) {
+    // Check if this is a CodeMirror-based cell
+    if (cell.cmEditor) {
+        const preview = cell.querySelector('.markdown-preview');
+        if (preview) {
+            renderMarkdownWithCM(cell.cmEditor, preview);
+
+            // Make sure preview is visible
+            preview.style.display = 'block';
+        }
+        return;
+    }
+
+    // Fallback for traditional cells
+    const input = cell.querySelector('[id^="mdinput"]');
+    const preview = cell.querySelector('[id^="preview"]');
+
+    if (!input || !preview) {
+        console.error("Input or preview element not found in the cell.");
+        return;
+    }
+
+    // Store original markdown
+    input.setAttribute('data-original', input.value);
+
+    // Render the markdown
+    if (typeof renderMarkdown === 'function') {
+        renderMarkdown(input, preview);
+    } else if (typeof texme !== 'undefined' && texme.render) {
+        preview.innerHTML = texme.render(input.value);
+
+        // Process math if available
+        if (window.MathJax) {
+            window.MathJax.texReset();
+            window.MathJax.typesetPromise([preview]);
+        }
+    }
+
+    // Show both input and preview
+    input.style.display = 'block';
+    preview.style.display = 'block';
+}
+
+function toggleMarkdownMode() {
+    document.querySelectorAll('.nb-cell.nb-markdown-cell').forEach(cell => {
+        // Handle CodeMirror cells
+        if (cell.cmEditor) {
+            const cmElement = cell.querySelector('.CodeMirror');
+            const preview = cell.querySelector('.markdown-preview');
+
+            if (editMode) {
+                // Switch to edit mode
+                cmElement.style.display = 'block';
+                preview.style.display = 'block';
+                cell.cmEditor.refresh(); // Important: CM needs a refresh when shown
+            } else {
+                // Switch to preview mode
+                cmElement.style.display = 'none';
+                preview.style.display = 'block';
+
+                // Update the preview with the latest content
+                renderMarkdownWithCM(cell.cmEditor, preview);
+            }
+            return;
+        }
+
+        // Handle traditional cells
+        const input = cell.querySelector('[id^="mdinput"]');
+        const preview = cell.querySelector('[id^="preview"]');
+
+        if (input && preview) {
+            if (editMode) {
+                // Show input, hide preview
+                input.value = input.getAttribute('data-original') || '';
+                input.style.display = 'block';
+                preview.style.display = 'block';
+            } else {
+                // Store original markdown
+                input.setAttribute('data-original', input.value);
+
+                // Render content
+                if (typeof renderMarkdown === 'function') {
+                    renderMarkdown(input, preview);
+                } else if (typeof texme !== 'undefined' && texme.render) {
+                    preview.innerHTML = texme.render(input.value);
+
+                    // Process math if available
+                    if (window.MathJax) {
+                        window.MathJax.texReset();
+                        window.MathJax.typesetPromise([preview]);
+                    }
+                }
+
+                // Hide input, show preview
+                input.style.display = 'none';
+                preview.style.display = 'block';
+            }
+        }
+    });
+
+    // Toggle global edit mode
+    editMode = !editMode;
+}
+
+function initializeMarkdownCells() {
+    console.log("Initializing markdown cells...");
+
+    // Get all markdown cells
+    const markdownCells = document.querySelectorAll('.nb-cell.nb-markdown-cell');
+    const cellsToTransform = [];
+
+    // First collect all cells and their content to avoid DOM modification issues during iteration
+    markdownCells.forEach(cell => {
+        let content = '';
+
+        // Declare both outside conditional blocks.
+        const textarea = cell.querySelector('textarea');
+        const preview = cell.querySelector('.markdown-preview') ||
+                        cell.querySelector('[id^="preview"]');
+
+        // Use the attribute even if it is deliberately an empty string.
+        if (textarea && textarea.hasAttribute('data-original')) {
+            content = textarea.getAttribute('data-original') || '';
+        } else if (preview && preview.hasAttribute('data-original-markdown')) {
+            content = preview.getAttribute('data-original-markdown') || '';
+        } else if (textarea) {
+            content = textarea.value || '';
+        }
+
+        // Do not use preview.innerHTML as a fallback for an empty Markdown cell.
+        // It may contain generated HTML such as <p><em></em></p>, rather than
+        // the user's original Markdown source.
+        content = content.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+
+        cellsToTransform.push({
+            cell: cell,
+            content: content
+        });
+    });
+
+    // Now transform each cell
+    cellsToTransform.forEach(item => {
+        // Create a new markdown cell with the extracted content
+        const newCell = createMarkdownCell(item.content);
+
+        // Replace the old cell with the new one
+        if (item.cell.parentNode) {
+            item.cell.parentNode.replaceChild(newCell, item.cell);
+        }
+    });
+
+    // After a delay, ensure all CodeMirror instances are properly sized and buttons are labeled correctly
+    setTimeout(() => {
+        document.querySelectorAll('.nb-markdown-cell').forEach(cell => {
+            // Set initial visibility based on global edit mode
+            const cmElement = cell.querySelector('.CodeMirror');
+            const preview = cell.querySelector('.markdown-preview');
+
+            if (cmElement && preview) {
+                if (typeof editMode !== 'undefined' && editMode) {
+                    // Edit mode: show editor and preview
+                    cmElement.style.display = 'block';
+                    preview.style.display = 'block';
+                } else {
+                    // View mode: hide editor, show preview
+                    cmElement.style.display = 'none';
+                    preview.style.display = 'block';
+                }
+
+                // If there's a CodeMirror instance, make sure it's refreshed
+                if (cell.cmEditor) {
+                    cell.cmEditor.refresh();
+                }
+            }
+
+            // Update edit/view button text
+            const editButton = cell.querySelector('.control-bar button:first-child');
+            if (editButton) {
+                editButton.textContent = (typeof editMode !== 'undefined' && editMode) ? 'View' : 'Edit';
+            }
+        });
+    }, 300);
+}
+
+function convertToCode(markdownCell) {
+    // Get content from the markdown cell
+    let markdownText = '';
+
+    if (markdownCell.cmEditor) {
+        markdownText = markdownCell.cmEditor.getValue();
+    } else {
+        const textareas = markdownCell.querySelectorAll('textarea');
+        if (textareas.length > 0) {
+            // Use only the first textarea
+            markdownText = textareas[0].value;
+        } else {
+            console.error('Could not find content in markdown cell');
+            return;
+        }
+    }
+
+    // Check if the content contains textarea tags and sanitize if needed
+    if (markdownText.includes('<textarea')) {
+        markdownText = markdownText.replace(/<textarea/g, '&lt;textarea');
+    }
+
+    // Clean content
+    markdownText = markdownText.replace(/[\u200B]/g, '');
+
+    // Use your existing createCodeCell function
+    const codeCell = createCodeCell(markdownText);
+
+    // Replace the markdown cell
+    markdownCell.parentNode.replaceChild(codeCell, markdownCell);
+
+    // Process notebook
+    reprocessNotebook();
+
+    // Add control bar after a delay and clean up any duplicate compute divs
+    setTimeout(() => {
+        addControlBar(codeCell);
+
+        // Remove duplicate compute elements if any exist
+        const computeDivs = codeCell.querySelectorAll('.compute');
+        if (computeDivs.length > 1) {
+            Array.from(computeDivs).slice(1).forEach(div => div.remove());
+        }
+    }, 300);
+}
+
+function collectNotebookText() {
+    const cells = document.querySelectorAll('.nb-cell');
+    const outputs = [];
+    let codeCellCount = 1;
+
+    cells.forEach((cell, index) => {
+        let cellText = '';
+
+        if (cell.classList.contains('nb-markdown-cell')) {
+            let markdownContent = '';
+
+            // Check if this is a CodeMirror cell
+            if (cell.cmEditor) {
+                markdownContent = cell.cmEditor.getValue().replace(/[\u200B]/g, '');
+            } else {
+                // Try to get text from the hidden textarea
+                const textarea = cell.querySelector('textarea');
+                if (textarea) {
+                    markdownContent = textarea.value.replace(/[\u200B]/g, '');
+                }
+            }
+
+            cellText = `@Markdown[${index + 1}]:\n${markdownContent}`;
+        } else if (cell.classList.contains('nb-code-cell')) {
+            // Use your existing function to extract code
+            const codeText = getCodeFromCell(cell, codeCellCount - 1);
+            cellText = `@${codeText}`;
+            codeCellCount++;
+        }
+
+        if (cellText) {
+            outputs.push(cellText);
+        }
+    });
+
+    // Join each cell's content with the separator
+    return outputs.join('\n@=================\n').trim();
+}
+
+function toggleSingleCellEditMode(cell) {
+    const button = cell.querySelector('.control-bar button:first-child');
+    const isCurrentlyInViewMode = button.textContent === 'Edit';
+
+    if (cell.cmEditor) {
+        // This is a CodeMirror-based markdown cell
+        const cmElement = cell.querySelector('.CodeMirror');
+        const preview = cell.querySelector('.markdown-preview');
+
+        if (isCurrentlyInViewMode) {
+            // Switch to edit mode
+            cmElement.style.display = 'block';
+            preview.style.display = 'block';
+            cell.cmEditor.refresh(); // Important for CM to render correctly
+            button.textContent = 'View';
+        } else {
+            // Switch to view mode
+            cmElement.style.display = 'none';
+            preview.style.display = 'block';
+
+            // Update the preview with the latest content
+            renderMarkdownWithCM(cell.cmEditor, preview);
+            button.textContent = 'Edit';
+        }
+    } else {
+        // Traditional textarea-based cell
+        const input = cell.querySelector('[id^="mdinput"]');
+        const preview = cell.querySelector('[id^="preview"]');
+
+        if (isCurrentlyInViewMode) {
+            // Switch to edit mode
+            input.style.display = 'block';
+            preview.style.display = 'block';
+            button.textContent = 'View';
+        } else {
+            // Switch to view mode
+            input.style.display = 'none';
+            preview.style.display = 'block';
+
+            // Update preview with current content
+            if (typeof renderMarkdown === 'function') {
+                renderMarkdown(input, preview);
+            } else if (typeof texme !== 'undefined' && texme.render) {
+                preview.innerHTML = texme.render(input.value);
+
+                // Process math if available
+                if (window.MathJax) {
+                    window.MathJax.texReset();
+                    window.MathJax.typesetPromise([preview]);
+                }
+            }
+
+            button.textContent = 'Edit';
+        }
+    }
+}
+
+function addMarkdownCell(referenceCell, position, initialContent = '') {
+    const markdownCell = createMarkdownCell(initialContent);
+
+    // Insert the new cell at the specified position
+    if (position === 'above') {
+        referenceCell.parentNode.insertBefore(markdownCell, referenceCell);
+    } else {
+        referenceCell.parentNode.insertBefore(markdownCell, referenceCell.nextSibling);
+    }
+    return markdownCell;
+}
+
+function simplifyMarkdownCellsForSaving() {
+    console.log("Simplifying markdown cells for saving...");
+
+    // First, remove all control bars
+    document.querySelectorAll('.control-bar, .control-ai-bar, .inline-markdown-tips').forEach(bar => {
+        bar.remove();
+    });
+
+    // Handle all markdown cells
+    document.querySelectorAll('.nb-markdown-cell').forEach(cell => {
+        // 1. Get content from the cell (prioritizing CodeMirror)
+        let content = '';
+
+        // Always try to get content from CodeMirror first as it's most up-to-date
+        if (cell.cmEditor) {
+            content = cell.cmEditor.getValue();
+            // Clean up only zero-width spaces and BOM while preserving other Unicode
+            content = content.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+            console.log("Got content from CodeMirror:", content.substring(0, 30) + "...");
+
+            // Properly clean up the CodeMirror instance
+            cell.cmEditor.toTextArea();
+            cell.cmEditor = null;
+        }
+
+        // 2. Update textarea with the content
+        const textarea = cell.querySelector('textarea');
+        if (textarea) {
+            if (content) {
+                // Update textarea with CodeMirror content
+                textarea.value = content;
+            } else {
+                // If no CodeMirror content was available, get it from the textarea
+                content = textarea.value || textarea.getAttribute('data-original') || '';
+                // Clean up only problematic characters
+                content = content.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+                console.log("Got content from textarea:", content.substring(0, 30) + "...");
+            }
+
+            // Always update the data-original attribute
+            textarea.setAttribute('data-original', content);
+
+            // Hide the textarea but keep it in the DOM
+            textarea.style.display = 'none';
+        }
+
+        // 3. Clean up any remaining CodeMirror elements
+        cell.querySelectorAll('.CodeMirror').forEach(cm => {
+            cm.remove();
+            console.log("Removed CodeMirror element");
+        });
+
+        // 4. Update the preview with the latest content
+        const preview = cell.querySelector('.markdown-preview');
+        if (preview) {
+            preview.style.display = 'block';
+
+            // Store the original markdown in a data attribute
+            preview.setAttribute('data-original-markdown', content);
+
+            // Render the markdown if texme is available
+            if (typeof texme !== 'undefined' && texme.render) {
+                try {
+                    preview.innerHTML = texme.render(content);
+                    console.log("Updated preview with rendered markdown");
+                } catch (e) {
+                    console.error("Error rendering markdown:", e);
+                    preview.textContent = content;
+                }
+            } else {
+                // Fallback if texme isn't available
+                preview.textContent = content;
+            }
+        }
+    });
+
+    console.log("Markdown cells simplified for saving");
+}
+
+function copyOutputToMarkdown(cell) {
+    const isAICell = cell.querySelector('.CodeMirror') &&
+        cell.querySelector('.CodeMirror').CodeMirror &&
+        cell.querySelector('.CodeMirror').CodeMirror.getValue().includes('# -START OF AI CELL-');
+
+    const outputContainer = cell.querySelector('.sagecell_sessionOutput');
+    if (!outputContainer) {
+        console.log("No output container found to copy");
+        return;
+    }
+
+    const spinners = outputContainer.querySelectorAll('.sagecell_spinner');
+    spinners.forEach(spinner => spinner.remove());
+
+    let outputContent = '';
+    let hasContent = false;
+    const processedItems = new Set();
+
+    function addUniqueContent(content, id) {
+        if (!processedItems.has(id)) {
+            outputContent += content;
+            processedItems.add(id);
+            hasContent = true;
+            return true;
+        }
+        return false;
+    }
+
+    const errorElements = outputContainer.querySelectorAll('.sagecell_pyerr');
+    if (errorElements.length > 0) {
+        const error = errorElements[0];
+        addUniqueContent('<!-- sage output error -->\n' + error.outerHTML + '\n\n',
+            'error-' + error.textContent.substring(0, 50));
+    }
+
+    // ── Accept ANY non-spinner image that appeared in the cell output ──────────
+    // This covers: official sagecell.sagemath.org, self-hosted IP servers,
+    // custom domains, data URIs, and URLs like:
+    // http://80.91.79.120/kernel/UUID/files/tmp_xyz.png?m=timestamp
+    const imageElements = outputContainer.querySelectorAll('img:not(.sagecell_spinner)');
+    let images = Array.from(imageElements).filter(img => {
+        if (!img.src || img.src === '') return false;
+        if (img.classList.contains('sagecell_spinner')) return false;
+        // Exclude known UI/icon images by checking for sagecell-specific class names
+        if (img.classList.contains('sagecell_icon')) return false;
+        return true;
+    });
+
+    // Deduplicate by src
+    const uniqueImageUrls = new Set();
+    images = images.filter(img => {
+        if (uniqueImageUrls.has(img.src)) return false;
+        uniqueImageUrls.add(img.src);
+        return true;
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const preElements = outputContainer.querySelectorAll('pre:not(.sagecell_stdout):not(.sagecell_pyerr)');
+    if (preElements.length > 0) {
+        const uniquePreContents = new Map();
+        preElements.forEach(pre => {
+            const content = pre.textContent.trim();
+            if (!uniquePreContents.has(content)) {
+                uniquePreContents.set(content, pre);
+                addUniqueContent('<!-- sage output text -->\n' + content + '\n\n',
+                    'pre-' + content.substring(0, 50));
+            }
+        });
+    }
+
+    const mjxContainers = outputContainer.querySelectorAll('mjx-container');
+    if (mjxContainers.length > 0) {
+        const uniqueMathJax = new Set();
+        mjxContainers.forEach(container => {
+            const mathText = container.querySelector('mjx-assistive-mml')?.textContent || container.textContent;
+            const mathSignature = 'mathjax-' + mathText.substring(0, 50);
+            if (!uniqueMathJax.has(mathSignature)) {
+                uniqueMathJax.add(mathSignature);
+                let mjxParent = container.closest('div');
+                if (mjxParent) {
+                    addUniqueContent('<!-- sage output math -->\n' + mjxParent.outerHTML + '\n\n', mathSignature);
+                }
+            }
+        });
+    }
+
+    const stdoutElements = outputContainer.querySelectorAll('.sagecell_stdout');
+    if (stdoutElements.length > 0) {
+        const stdout = stdoutElements[0];
+        const stdoutContent = isAICell
+            ? stdout.textContent.trim() + '\n\n'
+            : stdout.outerHTML + '\n\n';
+        addUniqueContent(stdoutContent, 'stdout-' + stdout.textContent.substring(0, 50));
+    }
+
+    const dataframeElements = outputContainer.querySelectorAll('.dataframe');
+    if (dataframeElements.length > 0) {
+        const dataframe = dataframeElements[0];
+        let tableParent = dataframe.closest('div');
+        if (tableParent) {
+            const rowCount = dataframe.querySelectorAll('tr').length;
+            const colCount = dataframe.querySelector('tr')?.querySelectorAll('th, td').length || 0;
+            addUniqueContent('<!-- sage output dataframe -->\n' + tableParent.outerHTML + '\n\n',
+                `dataframe-${rowCount}x${colCount}`);
+        } else {
+            addUniqueContent('<!-- sage output dataframe -->\n' + dataframe.outerHTML + '\n\n', 'dataframe');
+        }
+    }
+
+    if (!hasContent && images.length === 0) {
+        console.log("No valid output content found to copy");
+        return;
+    }
+
+    const newMarkdownCell = addMarkdownCell(cell, 'below', outputContent);
+
+    if (images.length > 0) {
+        if (newMarkdownCell.cmEditor) {
+            const loadingText = outputContent
+                ? outputContent + "\n\n*Loading image(s)...*"
+                : "*Loading image(s)...*";
+            newMarkdownCell.cmEditor.setValue(loadingText);
+        }
+        processImagesWithFallbacks(images, 0, outputContent, newMarkdownCell);
+    } else {
+        finalizeMarkdownCell(newMarkdownCell, outputContent);
+    }
+}
+
+// Improved function to process images with multiple fallback methods
+function processImagesWithFallbacks(images, index, currentContent, markdownCell) {
+    // Stop the whole pipeline if the target cell no longer exists
+    if (!markdownCell || !markdownCell.isConnected) return;
+
+    if (index >= images.length) {
+        finalizeMarkdownCell(markdownCell, currentContent);
+        return;
+    }
+
+    const currentImage = images[index];
+    const src = currentImage.src;
+
+    function appendImage(dataUrl) {
+        if (currentContent && !currentContent.endsWith('\n\n')) currentContent += '\n\n';
+        currentContent += `<!-- sage output image -->\n![Output Image ${index + 1}](${dataUrl})\n\n`;
+        setEditorContent(markdownCell, currentContent);
+        processImagesWithFallbacks(images, index + 1, currentContent, markdownCell);
+    }
+
+    // Data URI — embed directly, no conversion needed
+    if (src.startsWith('data:')) {
+        appendImage(src);
+        return;
+    }
+
+    // Method 1: fetch (works when server sends CORS headers)
+    fetch(src)
+        .then(res => {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.blob();
+        })
+        .then(blob => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        }))
+        .then(dataUrl => appendImage(dataUrl))
+        .catch(fetchErr => {
+            console.warn('Fetch failed, trying canvas:', fetchErr);
+
+            // Method 2: canvas
+            convertImageToBase64(src)
+                .then(base64 => appendImage(base64))
+                .catch(canvasErr => {
+                    console.warn('Canvas failed, skipping image:', canvasErr);
+                    // Skip this image but continue with remaining ones
+                    processImagesWithFallbacks(images, index + 1, currentContent, markdownCell);
+                });
+        });
+}
+
+// Improved convertImageToBase64 function with better error handling
+function convertImageToBase64(url) {
+    return new Promise((resolve, reject) => {
+        // Add a cache-busting parameter to avoid caching issues
+        const cacheBustUrl = url.includes('?') ?
+            `${url}&_=${new Date().getTime()}` :
+            `${url}?_=${new Date().getTime()}`;
+
+        const img = new Image();
+        img.crossOrigin = 'Anonymous'; // Try to handle CORS issues
+
+        // Set timeout to prevent hanging
+        const timeoutId = setTimeout(() => {
+            reject(new Error('Image loading timed out'));
+        }, 10000); // 10 second timeout
+
+        img.onload = function() {
+            clearTimeout(timeoutId);
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+
+                // Get the data URL (base64 encoded image)
+                const dataURL = canvas.toDataURL('image/png');
+                resolve(dataURL);
+            } catch (e) {
+                reject(e);
+            }
+        };
+
+        img.onerror = function(e) {
+            clearTimeout(timeoutId);
+            reject(new Error(`Failed to load image: ${e.message}`));
+        };
+
+        // Set src after setting up event handlers
+        img.src = cacheBustUrl;
+
+        // If the image is already loaded (from cache), manually trigger onload
+        if (img.complete) {
+            img.onload();
+        }
+    });
+}
+
+function setEditorContent(markdownCell, content, attempts = 0) {
+    // Bail out if the cell was removed from the DOM (e.g. by undo)
+    if (!markdownCell || !markdownCell.isConnected) return;
+
+    if (!markdownCell.cmEditor) {
+        if (attempts < 100) {
+            setTimeout(() => setEditorContent(markdownCell, content, attempts + 1), 30);
+        } else {
+            console.warn('setEditorContent: CodeMirror editor never initialized, giving up.');
+        }
+        return;
+    }
+    markdownCell.cmEditor.setValue(content);
+    const preview = markdownCell.querySelector('.markdown-preview');
+    if (preview) {
+        preview.classList.remove('empty-markdown-preview');
+        renderMarkdownWithCM(markdownCell.cmEditor, preview);
+    }
+}
+
+// Finalizes a markdown cell with the provided content
+function finalizeMarkdownCell(markdownCell, content) {
+    setEditorContent(markdownCell, content);
+}
+
+// Add numbering to all SageCells
+function addSageCellNumbering() {
+    const codeCells = document.querySelectorAll('div.nb-code-cell');
+
+    codeCells.forEach((cell, index) => {
+        // Create the number label
+        const numberLabel = document.createElement('div');
+        numberLabel.className = 'sagecell-number';
+        numberLabel.textContent = `[${index + 1}]`;
+
+        // Add the label to the nb-code-cell div
+        cell.appendChild(numberLabel);
+    });
+
+    // Add the CSS for numbering
+    addSageCellNumberingCSS();
+}
+
+// Separate function for CSS
+function addSageCellNumberingCSS() {
+    // Check if the styles already exist
+    if (!document.getElementById('sagecell-numbering-css')) {
+        const style = document.createElement('style');
+        style.id = 'sagecell-numbering-css';
+        style.textContent = `
+            div.nb-code-cell {
+                position: absolute;
+            }
+            .sagecell-number {
+                position: absolute;
+                left: -50px;
+                top: 0px;
+                font-family: consolas;
+                color: var(--sagecell-number-color, blue);
+                font-size: 14px;
+                font-weight: normal;
+                width: 30px;
+                text-align: right;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+// Function to remove all cell numbering
+function removeSageCellNumbering() {
+    // Remove all number labels
+    const numberLabels = document.querySelectorAll('.sagecell-number');
+    numberLabels.forEach(label => {
+        label.remove();
+    });
+
+    // Remove the CSS
+    const styleElement = document.getElementById('sagecell-numbering-css');
+    if (styleElement) {
+        styleElement.remove();
+    }
+}
+
+// Function to generate and display an interactive table of contents
+// Configuration object for easy customization
+const TOC_CONFIG = {
+    colors: {
+        main: 'var(--main-color, #4CAF50)',
+        mainFallback: '#4CAF50',
+        background: '#f8f9fa',
+        toolbar: '#f0f0f0',
+        border: '#dee2e6',
+        header: '#fff',
+        text: '#333',
+        textMuted: '#777',
+        hover: '#e9ecef',
+        active: '#d1e7dd',
+        activeText: 'var(--hover-color, #286090)'
+    },
+    sizes: {
+        width: 250,
+        fontSize: 13,
+        headerFontSize: 15,
+        toggleBtnSize: 36
+    },
+    spacing: {
+        top: 60,
+        itemMargin: 2,
+        padding: 6
+    }
+};
+
+// Function to generate and display an interactive table of contents
+function createTableOfContents() {
+    // Check if TOC already exists
+    if (document.getElementById('notebook-toc')) {
+        toggleTableOfContents();
+        return;
+    }
+
+    // Add CSS styles
+    injectTOCStyles();
+
+    // Create TOC container
+    const tocContainer = createTOCContainer();
+    
+    // Create header
+    const header = createTOCHeader();
+    tocContainer.appendChild(header);
+
+    // Create content area
+    const tocContent = createTOCContent();
+    tocContainer.appendChild(tocContent);
+
+    // Create toolbar
+    const toolbar = createTOCToolbar();
+    tocContainer.appendChild(toolbar);
+
+    // Add to DOM
+    document.body.appendChild(tocContainer);
+
+    // Generate TOC content
+    updateTableOfContents();
+
+    // Show the TOC
+    toggleTableOfContents();
+}
+
+// Inject all CSS styles
+function injectTOCStyles() {
+    const existingStyle = document.getElementById('notebook-toc-styles');
+    if (existingStyle) return;
+
+    const style = document.createElement('style');
+    style.id = 'notebook-toc-styles';
+    style.textContent = `
+        /* TOC Container */
+        .notebook-toc {
+            position: fixed;
+            top: ${TOC_CONFIG.spacing.top}px;
+            left: 0;
+            width: ${TOC_CONFIG.sizes.width}px;
+            max-height: calc(100vh - 80px);
+            background-color: ${TOC_CONFIG.colors.background};
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 9990;
+            border-radius: 0 5px 5px 0;
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(-${TOC_CONFIG.sizes.width}px);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            font-size: ${TOC_CONFIG.sizes.fontSize}px;
+        }
+
+        /* TOC Header */
+        .toc-header {
+            padding: 8px 12px;
+            border-bottom: 1px solid ${TOC_CONFIG.colors.border};
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--main-color, ${TOC_CONFIG.colors.mainFallback});
+            color: var(--main-btn-icons, ${TOC_CONFIG.colors.header});
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .toc-header h3 {
+            margin: 0;
+            font-size: ${TOC_CONFIG.sizes.headerFontSize}px;
+            font-weight: 700;
+        }
+
+        .toc-close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0 5px;
+            line-height: 1;
+        }
+
+        .toc-close-btn:hover {
+            opacity: 0.8;
+        }
+
+        /* TOC Content */
+        .toc-content {
+            padding: ${TOC_CONFIG.spacing.padding}px 0;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        /* TOC Toolbar */
+        .toc-toolbar {
+            padding: ${TOC_CONFIG.spacing.padding}px 12px;
+            border-top: 1px solid ${TOC_CONFIG.colors.border};
+            display: flex;
+            justify-content: space-between;
+            background-color: ${TOC_CONFIG.colors.toolbar};
+        }
+
+        .toc-toolbar-btn {
+            padding: 4px 8px;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: opacity 0.2s;
+        }
+
+        .toc-toolbar-btn:hover {
+            opacity: 0.9;
+        }
+
+        .toc-refresh-btn {
+            background-color: var(--main-color, ${TOC_CONFIG.colors.mainFallback});
+            color: var(--main-btn-icons, ${TOC_CONFIG.colors.header});
+            font-weight: 700;
+        }
+
+        .toc-toggle-all-btn {
+            background-color: #607d8b;
+            font-weight: 700;
+        }
+
+        /* TOC Toggle Button */
+        #toc-toggle-btn {
+            position: fixed;
+            top: 70px;
+            left: 10px;
+            z-index: 9989;
+            width: ${TOC_CONFIG.sizes.toggleBtnSize}px;
+            height: ${TOC_CONFIG.sizes.toggleBtnSize}px;
+            border-radius: 50%;
+            background-color: var(--main-color, ${TOC_CONFIG.colors.mainFallback});
+            color: white;
+            border: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: left 0.3s ease-in-out, opacity 0.2s;
+        }
+
+        #toc-toggle-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* TOC List Styles */
+        .toc-list {
+            list-style-type: none;
+            padding-left: 12px;
+            margin: 0;
+        }
+
+        .toc-list-root {
+            padding-left: 0;
+        }
+
+        .toc-item {
+            margin: ${TOC_CONFIG.spacing.itemMargin}px 0;
+            position: relative;
+        }
+
+        .toc-link {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: ${TOC_CONFIG.colors.text};
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: ${TOC_CONFIG.sizes.fontSize}px;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+
+        .toc-link:hover {
+            background-color: ${TOC_CONFIG.colors.hover};
+        }
+
+        .toc-link.active {
+            background-color: ${TOC_CONFIG.colors.active};
+            font-weight: bold;
+            color: ${TOC_CONFIG.colors.activeText};
+        }
+
+        .toc-toggle {
+            width: 16px;
+            height: 16px;
+            margin-right: 4px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: ${TOC_CONFIG.colors.textMuted};
+        }
+
+        .toc-icon {
+            transition: transform 0.2s;
+        }
+
+        .toc-item.collapsed .toc-icon {
+            transform: rotate(-90deg);
+        }
+
+        .toc-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Heading Levels */
+        .toc-item.h1 > .toc-link { 
+            font-weight: bold; 
+            font-size: 14px; 
+        }
+
+        .toc-item.h2 > .toc-link { 
+            padding-left: 12px; 
+        }
+
+        .toc-item.h3 > .toc-link { 
+            padding-left: 24px; 
+            font-size: 12px; 
+        }
+
+        .toc-item.h4 > .toc-link { 
+            padding-left: 36px; 
+            font-size: 11px; 
+            color: #555; 
+        }
+
+        .toc-item.h5 > .toc-link, 
+        .toc-item.h6 > .toc-link { 
+            padding-left: 48px;
+            font-size: 11px;
+            font-style: italic;
+            color: ${TOC_CONFIG.colors.textMuted};
+        }
+
+        /* Scrollbar Styles */
+        .notebook-toc::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .notebook-toc::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .notebook-toc::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+
+        .notebook-toc::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// Create TOC container element
+function createTOCContainer() {
+    const container = document.createElement('div');
+    container.id = 'notebook-toc';
+    container.className = 'notebook-toc';
+    return container;
+}
+
+// Create TOC header
+function createTOCHeader() {
+    const header = document.createElement('div');
+    header.className = 'toc-header';
+
+    const title = document.createElement('h3');
+    title.textContent = 'Table of Contents';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'toc-close-btn';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.onclick = toggleTableOfContents;
+
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+
+    return header;
+}
+
+// Create TOC content area
+function createTOCContent() {
+    const content = document.createElement('div');
+    content.className = 'toc-content';
+    return content;
+}
+
+// Create TOC toolbar with buttons
+function createTOCToolbar() {
+    const toolbar = document.createElement('div');
+    toolbar.className = 'toc-toolbar';
+
+    // Refresh button
+    const refreshBtn = document.createElement('button');
+    refreshBtn.className = 'toc-toolbar-btn toc-refresh-btn';
+    refreshBtn.textContent = 'Refresh TOC';
+    refreshBtn.onclick = updateTableOfContents;
+
+    // Collapse/Expand button
+    const toggleAllBtn = document.createElement('button');
+    toggleAllBtn.className = 'toc-toolbar-btn toc-toggle-all-btn';
+    toggleAllBtn.textContent = 'Collapse All';
+    toggleAllBtn.dataset.state = 'expanded';
+    toggleAllBtn.onclick = function() {
+        toggleAllTOCItems(this);
+    };
+
+    toolbar.appendChild(refreshBtn);
+    toolbar.appendChild(toggleAllBtn);
+
+    return toolbar;
+}
+
+// Toggle all TOC items
+function toggleAllTOCItems(btn) {
+    const tocItems = document.querySelectorAll('.toc-item');
+    const isExpanded = btn.dataset.state === 'expanded';
+
+    tocItems.forEach(item => {
+        const sublist = item.querySelector('ul');
+        if (sublist) {
+            sublist.style.display = isExpanded ? 'none' : 'block';
+            item.classList.toggle('collapsed', isExpanded);
+            item.classList.toggle('expanded', !isExpanded);
+        }
+    });
+
+    btn.dataset.state = isExpanded ? 'collapsed' : 'expanded';
+    btn.textContent = isExpanded ? 'Expand All' : 'Collapse All';
+}
+
+// Toggle TOC visibility
+function toggleTableOfContents() {
+    const toc = document.getElementById('notebook-toc');
+
+    if (!toc) return;
+
+    const isVisible = toc.style.transform === 'translateX(0px)';
+    const width = TOC_CONFIG.sizes.width;
+
+    if (isVisible) {
+        // Hide TOC
+        toc.style.transform = `translateX(-${width}px)`;
+
+    } else {
+        // Show TOC
+        toc.style.transform = 'translateX(0px)';
+
+    }
+}
+
+
+
+// Generate TOC from markdown content - unchanged
+function updateTableOfContents() {
+    const tocContent = document.querySelector('.toc-content');
+    if (!tocContent) return;
+
+    // Clear current TOC
+    tocContent.innerHTML = '';
+
+    // Create root list
+    const rootList = document.createElement('ul');
+    rootList.className = 'toc-list toc-list-root';
+    tocContent.appendChild(rootList);
+
+    // Process all markdown cells
+    const markdownCells = document.querySelectorAll('.nb-cell.nb-markdown-cell');
+    let headers = [];
+    let currentCell = 0;
+
+    markdownCells.forEach((cell, cellIndex) => {
+        // Get all header elements from the cell
+        const headerElements = cell.querySelectorAll('h1, h2, h3, h4, h5, h6');
+
+        headerElements.forEach(header => {
+            // Only process if the header has an ID or text
+            if (header.id || header.textContent.trim()) {
+                // Ensure header has an ID for linking
+                if (!header.id) {
+                    header.id = 'header-' + cellIndex + '-' + headers.length;
+                }
+
+                headers.push({
+                    id: header.id,
+                    text: header.textContent.trim(),
+                    level: parseInt(header.tagName.substring(1)),
+                    cellIndex: cellIndex,
+                    element: header
+                });
+            }
+        });
+    });
+
+    // If no headers were found in the markdown preview, try to parse from CodeMirror content
+    if (headers.length === 0) {
+        markdownCells.forEach((cell, cellIndex) => {
+            if (cell.cmEditor) {
+                const content = cell.cmEditor.getValue();
+                const lines = content.split('\n');
+
+                lines.forEach((line, lineIndex) => {
+                    // Match markdown headers (e.g., # Header, ## Subheader)
+                    const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
+                    if (headerMatch) {
+                        const level = headerMatch[1].length;
+                        const text = headerMatch[2].trim();
+                        const id = 'header-' + cellIndex + '-' + lineIndex;
+
+                        headers.push({
+                            id: id,
+                            text: text,
+                            level: level,
+                            cellIndex: cellIndex,
+                            lineIndex: lineIndex
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    // Build TOC structure
+    if (headers.length > 0) {
+        buildTocStructure(headers, rootList);
+    } else {
+        // No headers found
+        const noHeaders = document.createElement('div');
+        noHeaders.style.padding = '12px'; // Reduced from 15px
+        noHeaders.style.color = '#777';
+        noHeaders.style.fontStyle = 'italic';
+        noHeaders.style.fontSize = '12px'; // Added smaller font
+        noHeaders.textContent = 'No headers found in the notebook. Add markdown cells with # Header, ## Subheader, etc.';
+        tocContent.appendChild(noHeaders);
+    }
+}
+
+// Build nested TOC structure from headers - unchanged
+function buildTocStructure(headers, rootList) {
+    // Build a hierarchical structure based on header levels
+    const rootLevel = Math.min(...headers.map(h => h.level));
+
+    // First pass - create all TOC items at root level
+    const tocItems = headers.map(header => {
+        const item = document.createElement('li');
+        item.className = `toc-item h${header.level}`;
+        item.dataset.id = header.id;
+        item.dataset.level = header.level;
+
+        const link = document.createElement('div');
+        link.className = 'toc-link';
+        link.onclick = function() {
+            scrollToHeader(header);
+        };
+
+        // Add toggle button for potential children
+        const toggle = document.createElement('button');
+        toggle.className = 'toc-toggle';
+        toggle.innerHTML = '<span class="toc-icon">▼</span>';
+        toggle.style.visibility = 'hidden'; // Hide initially, will show if has children
+        toggle.onclick = function(e) {
+            e.stopPropagation();
+            toggleTocItem(item);
+        };
+
+        const text = document.createElement('span');
+        text.className = 'toc-text';
+        text.textContent = header.text;
+
+        link.appendChild(toggle);
+        link.appendChild(text);
+        item.appendChild(link);
+
+        return item;
+    });
+
+    // Add all root level items
+    tocItems.forEach((item, index) => {
+        const header = headers[index];
+        if (header.level === rootLevel) {
+            rootList.appendChild(item);
+        }
+    });
+
+    // Second pass - nest items based on header levels
+    for (let i = 0; i < headers.length; i++) {
+        const currentHeader = headers[i];
+        const currentItem = tocItems[i];
+
+        if (currentHeader.level === rootLevel) continue; // Skip root level items
+
+        // Find the parent for this item
+        let parentIndex = -1;
+        for (let j = i - 1; j >= 0; j--) {
+            if (headers[j].level < currentHeader.level) {
+                parentIndex = j;
+                break;
+            }
+        }
+
+        if (parentIndex !== -1) {
+            const parentItem = tocItems[parentIndex];
+
+            // Check if parent already has a sublist
+            let sublist = parentItem.querySelector('ul');
+            if (!sublist) {
+                sublist = document.createElement('ul');
+                sublist.className = 'toc-list';
+                parentItem.appendChild(sublist);
+
+                // Show the toggle button
+                const toggle = parentItem.querySelector('.toc-toggle');
+                if (toggle) {
+                    toggle.style.visibility = 'visible';
+                }
+            }
+
+            sublist.appendChild(currentItem);
+        }
+    }
+
+    // Initially expand all
+    document.querySelectorAll('.toc-item').forEach(item => {
+        const sublist = item.querySelector('ul');
+        if (sublist) {
+            sublist.style.display = 'block';
+            item.classList.add('expanded');
+        }
+    });
+}
+
+// Toggle TOC item expansion - unchanged
+function toggleTocItem(item) {
+    const sublist = item.querySelector('ul');
+    if (sublist) {
+        if (item.classList.contains('expanded')) {
+            // Collapse
+            sublist.style.display = 'none';
+            item.classList.remove('expanded');
+            item.classList.add('collapsed');
+        } else {
+            // Expand
+            sublist.style.display = 'block';
+            item.classList.remove('collapsed');
+            item.classList.add('expanded');
+        }
+    }
+}
+
+// Scroll to header with custom positioning - unchanged
+function scrollToHeader(header) {
+    // Clear any existing active classes
+    document.querySelectorAll('.toc-link').forEach(link => {
+        link.classList.remove('active');
+    });
+
+    let targetElement;
+
+    if (header.element) {
+        // If we have a direct reference to the DOM element
+        targetElement = header.element;
+
+        // Set active class on the TOC item
+        const tocItem = document.querySelector(`.toc-item[data-id="${header.id}"] .toc-link`);
+        if (tocItem) {
+            tocItem.classList.add('active');
+        }
+    } else {
+        // If we have a cell index and line index (from CodeMirror parsing)
+        const markdownCells = document.querySelectorAll('.nb-cell.nb-markdown-cell');
+        if (markdownCells.length > header.cellIndex) {
+            const cell = markdownCells[header.cellIndex];
+
+            // If the cell is collapsed, expand it first
+            const toggleButton = cell.querySelector('.control-bar button:first-child');
+            if (toggleButton && toggleButton.textContent === 'Edit') {
+                // Click the edit button to expand the cell
+                toggleButton.click();
+
+                // Give time for the cell to expand
+                setTimeout(() => {
+                    // Now try to focus on the right line
+                    if (cell.cmEditor) {
+                        cell.cmEditor.setCursor(header.lineIndex, 0);
+                        cell.cmEditor.focus();
+                    }
+
+                    // Scroll the cell into view with custom positioning
+                    customScrollToElement(cell);
+
+                    // Set active class on the TOC item
+                    const tocItem = document.querySelector(`.toc-item[data-id="${header.id}"] .toc-link`);
+                    if (tocItem) {
+                        tocItem.classList.add('active');
+                    }
+                }, 300);
+
+                return;
+            }
+
+            // If already expanded, just scroll to the cell
+            targetElement = cell;
+        }
+    }
+
+    // Scroll to the target element with custom positioning
+    if (targetElement) {
+        customScrollToElement(targetElement);
+
+        // Visual feedback - highlight the header
+        const originalBg = targetElement.style.backgroundColor;
+        targetElement.style.backgroundColor = 'rgba(255, 255, 150, 0.5)';
+        setTimeout(() => {
+            targetElement.style.backgroundColor = originalBg;
+        }, 2000);
+    }
+}
+
+// Custom scroll function to position element at 20% from the top - unchanged
+function customScrollToElement(element) {
+    const rect = element.getBoundingClientRect();
+    const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+    // Calculate position to place element at 20% of viewport height
+    const viewportHeight = window.innerHeight;
+    const targetScrollTop = currentScrollTop + rect.top - (viewportHeight * 0.2);
+
+    // Smooth scroll to the calculated position
+    window.scrollTo({
+        top: targetScrollTop,
+        behavior: 'smooth'
+    });
+}
+
+// Watch for changes in markdown cells to update TOC - unchanged
+function setupTocUpdateWatchers() {
+    // Update TOC whenever a markdown cell is edited
+    const observer = new MutationObserver(mutations => {
+        let shouldUpdate = false;
+
+        for (const mutation of mutations) {
+            // If markdown content was changed
+            if (mutation.type === 'childList' ||
+                (mutation.type === 'attributes' && mutation.attributeName === 'style')) {
+                shouldUpdate = true;
+                break;
+            }
+        }
+
+        if (shouldUpdate && document.getElementById('notebook-toc')) {
+            // Debounce updates to avoid excessive processing
+            clearTimeout(window.tocUpdateTimer);
+            window.tocUpdateTimer = setTimeout(updateTableOfContents, 500);
+        }
+    });
+
+    // Observe all markdown cells for changes
+    document.querySelectorAll('.nb-cell.nb-markdown-cell').forEach(cell => {
+        observer.observe(cell, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['style']
+        });
+    });
+
+    // Also watch for new cells being added to the notebook
+    const notebookObserver = new MutationObserver(mutations => {
+        for (const mutation of mutations) {
+            if (mutation.type === 'childList' && mutation.addedNodes.length) {
+                // If new cells were added
+                mutation.addedNodes.forEach(node => {
+                    if (node.classList && node.classList.contains('nb-cell')) {
+                        // Update TOC after a delay to let the cell render
+                        clearTimeout(window.tocUpdateTimer);
+                        window.tocUpdateTimer = setTimeout(() => {
+                            updateTableOfContents();
+
+                            // Also observe this new cell
+                            if (node.classList.contains('nb-markdown-cell')) {
+                                observer.observe(node, {
+                                    childList: true,
+                                    subtree: true,
+                                    attributes: true,
+                                    attributeFilter: ['style']
+                                });
+                            }
+                        }, 500);
+                    }
+                });
+            }
+        }
+    });
+
+    // Observe the notebook container for new cells
+    const notebook = document.querySelector('.nb-worksheet');
+    if (notebook) {
+        notebookObserver.observe(notebook, { childList: true });
+    }
+}
+
+// Initialize TOC functionality - made toggle button smaller
+function initializeTableOfContents() {
+    // Setup watchers for markdown changes
+    setupTocUpdateWatchers();
+    toggleTableOfContents();
+}
+
+// Run initialization when the page is loaded
+window.addEventListener('load', initializeTableOfContents);
+
+// Function to remove the table of contents and clean up all related elements
+function removeTableOfContents() {
+    // Remove the TOC container if it exists
+    const tocContainer = document.getElementById('notebook-toc');
+    if (tocContainer) {
+        tocContainer.parentNode.removeChild(tocContainer);
+    }
+
+    // Remove the toggle button if it exists
+    const toggleBtn = document.getElementById('toc-toggle-btn');
+    if (toggleBtn) {
+        toggleBtn.parentNode.removeChild(toggleBtn);
+    }
+
+    // Remove any TOC-related styles
+    const styleTags = document.head.getElementsByTagName('style');
+    for (let i = styleTags.length - 1; i >= 0; i--) {
+        const styleContent = styleTags[i].textContent;
+        // Check if this style element contains TOC-related CSS
+        if (styleContent.includes('.toc-') || styleContent.includes('#notebook-toc')) {
+            styleTags[i].parentNode.removeChild(styleTags[i]);
+        }
+    }
+
+    // Clean up event listeners and observers
+    if (window.tocUpdateTimer) {
+        clearTimeout(window.tocUpdateTimer);
+    }
+
+    // Clean up any global variables used by the TOC
+    window.tocUpdateTimer = null;
+
+    // Remove any active highlighting from headers
+    document.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(header => {
+        if (header.style.backgroundColor === 'rgba(255, 255, 150, 0.5)') {
+            header.style.backgroundColor = '';
+        }
+    });
+
+    // Log confirmation
+    console.log('Table of Contents has been completely removed');
+
+    // Return true to indicate successful removal
+    return true;
+}
+
+
+
+/**
+ * Extracts a sanitized filename base from the first H1 header (# Header)
+ * found in any markdown cell of the notebook.
+ * Prioritizes CodeMirror content, then simplified attributes, then textarea.
+ * @returns {string|null} - Sanitized filename base string or null if no suitable H1 is found.
+ */
+function extractFilenameBaseFromH1() {
+
+    // pomocná funkcia: odstráni všetky HTML tagy
+    function stripHtmlTags(html) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = html;
+        return tmp.textContent || tmp.innerText || "";
+    }
+
+    const markdownCells = document.querySelectorAll('.nb-cell.nb-markdown-cell');
+    for (const cell of markdownCells) {
+        let content = '';
+
+        if (cell.cmEditor) {
+            content = cell.cmEditor.getValue();
+        } else {
+            const preview = cell.querySelector('.markdown-preview');
+            if (preview && preview.getAttribute('data-original-markdown')) {
+                content = preview.getAttribute('data-original-markdown');
+            } else {
+                const textarea = cell.querySelector('textarea');
+                if (textarea) content = textarea.value;
+            }
+        }
+
+        if (content) {
+            const lines = content.split('\n');
+            for (const line of lines) {
+                const match = line.trim().match(/^#\s+(.+)/);
+                if (match && match[1]) {
+                    let headerText = match[1].trim();
+
+                    // odstráni všetky HTML tagy (font, span, b, i, atď.)
+                    headerText = stripHtmlTags(headerText);
+
+                    // sanitizácia pre názov súboru
+                    let sanitizedName = headerText
+                        .replace(/\s+/g, '_')              // medzery na podčiarkovníky
+                        .replace(/[\\/:*?"<>|#%&{}]/g, ''); // zakázané znaky
+
+                    sanitizedName = sanitizedName.substring(0, 100); // limit 100 znakov
+
+                    if (sanitizedName) {
+                        console.log("Extracted filename base from H1:", sanitizedName);
+                        return sanitizedName;
+                    }
+                }
+            }
+        }
+    }
+    console.log("No suitable H1 header found for filename extraction.");
+    return null;
+}
+
+
+
+// NBRUNNER INTERNAL PATCH — shared linkKey for all Sage cells
+(function setupSharedKernel() {
+    // One random linkKey per tab/session (survives reloads in the same tab)
+    function randomLinkKey() {
+        if (window.crypto && window.crypto.getRandomValues) {
+            const arr = new Uint32Array(4);
+            crypto.getRandomValues(arr);
+            return 'lk-' + Array.from(arr).map(x => x.toString(16).padStart(8, '0')).join('');
+        }
+        return 'lk-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    // Initialize or retrieve the shared link key
+    function getOrCreateLinkKey() {
+        try {
+            const existing = sessionStorage.getItem('sage_linkKey');
+            if (existing) return existing;
+            const k = randomLinkKey();
+            sessionStorage.setItem('sage_linkKey', k);
+            return k;
+        } catch {
+            return randomLinkKey();
+        }
+    }
+
+    const LINK_KEY = getOrCreateLinkKey();
+
+    // Ensure playerConfig exists and carries linkKey + linked
+    window.playerConfig = window.playerConfig || {};
+    playerConfig.linked = true;
+    playerConfig.linkKey = LINK_KEY;
+
+    // Expose for global access
+    window.SAGE_LINK_KEY = LINK_KEY;
+
+    // Function to update the shared link key (used by restartNotebook)
+    window.updateSharedLinkKey = function(newKey) {
+        window.SAGE_LINK_KEY = newKey;
+        window.playerConfig.linkKey = newKey;
+        try { 
+            sessionStorage.setItem('sage_linkKey', newKey); 
+        } catch(e) {
+            console.warn('Could not save linkKey to sessionStorage:', e);
+        }
+        console.log('Shared link key updated to:', newKey);
+    };
+
+    // Function to get the current shared link key
+    window.getSharedLinkKey = function() {
+        return window.SAGE_LINK_KEY || window.playerConfig.linkKey;
+    };
+
+    // Override makeSageCells to always pass the shared linkKey
+    window.makeSageCells = function(cfg) {
+        const e = Object.assign({}, playerConfig, cfg || {});
+        const isDe = (typeof getBrowserLanguage === 'function' && getBrowserLanguage() === 'de');
+        const evalBtn = isDe ? 'Ausführen' : '▶ Run';
+        
+        // Always use the current shared link key
+        const currentLinkKey = window.getSharedLinkKey();
+        
+        var result = sagecell.makeSagecell({
+            inputLocation: e.inputLocation || 'div.compute',
+            languages: [e.lang || 'sage'],
+            evalButtonText: evalBtn,
+            linked: true,
+            linkKey: currentLinkKey,
+            autoeval: e.eval || false,
+            hide: e.hide || ['fullScreen']
+        });
+        
+        setTimeout(addCommentShortcutToAllSageCells, 500);
+
+        return result;
+   
+    };
+})();
+
+
+// Always restart with a fresh kernel (new linkKey). No auto re-execution.
+async function restartNotebook() {
+    // Show loading overlay immediately
+    showLoadingOverlay();
+    
+    // Helper: generate a new shared linkKey
+    function generateLinkKey() {
+        if (window.crypto && window.crypto.getRandomValues) {
+            const arr = new Uint32Array(4);
+            crypto.getRandomValues(arr);
+            return 'lk-' + Array.from(arr).map(x => x.toString(16).padStart(8, '0')).join('');
+        }
+        return 'lk-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    // Helper: extract code from a code cell (prefers CodeMirror from SageCell)
+    function extractCodeFromCell(cell) {
+        let code = '';
+        const sagecellInput = cell.querySelector('.sagecell_input .CodeMirror');
+        if (sagecellInput && sagecellInput.CodeMirror) {
+            code = sagecellInput.CodeMirror.getValue();
+        } else {
+            const anyCM = cell.querySelector('.CodeMirror');
+            if (anyCM && anyCM.CodeMirror) {
+                code = anyCM.CodeMirror.getValue();
+            } else {
+                const script = cell.querySelector('script[type="text-sage"]');
+                if (script) code = script.textContent || '';
+            }
+        }
+        return String(code || '').replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+    }
+
+    try {
+        // 1) Generate and set the new shared link key
+        const newLinkKey = generateLinkKey();
+        window.updateSharedLinkKey(newLinkKey);
+
+        // 2) Collect all code BEFORE modifying the DOM
+        const codeCells = document.querySelectorAll('.nb-code-cell');
+        const cellCodes = [];
+        
+        codeCells.forEach(cell => {
+            const code = extractCodeFromCell(cell);
+            cellCodes.push({ cell, code });
+        });
+
+        // 3) Now rebuild each compute area
+        cellCodes.forEach(({ cell, code }) => {
+            const existingComputes = cell.querySelectorAll('.compute');
+            existingComputes.forEach(compute => compute.remove());
+
+            const straySagecells = cell.querySelectorAll('.sagecell');
+            straySagecells.forEach(sc => {
+                if (!sc.classList.contains('compute')) {
+                    sc.remove();
+                }
+            });
+
+            const compute = document.createElement('div');
+            compute.className = 'compute';
+
+            const script = document.createElement('script');
+            script.type = 'text/x-sage';
+            script.textContent = code;
+            compute.appendChild(script);
+
+            cell.appendChild(compute);
+        });
+
+        // 4) Re-initialize ALL Sage cells with the new shared link key
+        const isDe = (typeof getBrowserLanguage === 'function' && getBrowserLanguage() === 'de');
+        const evalBtn = isDe ? 'Ausführen' : '▶ Run';
+        const pc = window.playerConfig || {};
+
+        if (window.sagecell && typeof window.sagecell.makeSagecell === 'function') {
+            window.sagecell.makeSagecell({
+                inputLocation: 'div.compute',
+                languages: [pc.lang || 'sage'],
+                linked: true,
+                linkKey: newLinkKey,
+                autoeval: !!pc.eval,
+                hide: pc.hide || ['fullScreen'],
+                evalButtonText: evalBtn
+            });
+        } else {
+            console.warn('SageCell is not available; re-initialization skipped.');
+        }
+        
+        // Add comments shortcut
+
+        setTimeout(addCommentShortcutToAllSageCells, 500);
+        
+        // 5) Refresh numbering
+        try { if (typeof removeSageCellNumbering === 'function') removeSageCellNumbering(); } catch {}
+        try { if (typeof addSageCellNumbering === 'function') addSageCellNumbering(); } catch {}
+
+        // 6) Clean up any duplicate compute divs
+        cleanupComputeDivs();
+
+        console.log('Notebook restarted with fresh kernel. New linkKey:', newLinkKey);
+
+        // 7) Hide loading overlay after a delay to ensure cells are ready
+        setTimeout(() => {
+            hideLoadingOverlay();
+        }, 300);
+
+    } catch (error) {
+        console.error('Error restarting notebook:', error);
+        // Always hide overlay even on error
+        hideLoadingOverlay();
+    }
+}
+
+// Convert raw cell text into ipynb-style source lines:
+// trailing blank lines removed, '\n' on every line except the last.
+function toSourceLines(content) {
+    content = String(content || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    
+    // Remove zero-width spaces and other invisible characters
+    content = content.replace(/[\u200B-\u200D\uFEFF]/g, '');
+    
+    const linesArr = content.split('\n');
+    
+    // More robust blank line detection - check for truly empty or whitespace-only
+    while (linesArr.length > 0 && linesArr[linesArr.length - 1].trim() === '') {
+        linesArr.pop();
+    }
+    
+    return linesArr.map((line, idx) => idx < linesArr.length - 1 ? line + '\n' : line);
+}
+
+// Collect notebook content in IPYNB JSON format.
+// includeOutputs = true  -> outputs are extracted from the live SageCell DOM
+async function collectNotebookAsIPYNB(includeOutputs = true) {
+    const cells = document.querySelectorAll('.nb-cell');
+    const ipynbCells = [];
+    let codeCellCount = 1;
+
+    for (const cell of cells) {
+
+        if (cell.classList.contains('nb-markdown-cell')) {
+            let content = '';
+            if (cell.cmEditor) {
+                content = cell.cmEditor.getValue();
+            } else {
+                const textarea = cell.querySelector('textarea');
+                if (textarea) {
+                    content = textarea.value || textarea.getAttribute('data-original') || '';
+                }
+            }
+            ipynbCells.push({
+                cell_type: 'markdown',
+                metadata: {},
+                source: toSourceLines(content)
+            });
+
+        } else if (cell.classList.contains('nb-code-cell')) {
+            let codeContent = getCodeFromCell(cell, codeCellCount - 1);
+            // strip the "In[n]:" prefix added by getCodeFromCell
+            const codeLines = codeContent.split('\n');
+            codeContent = (codeLines.length > 1 ? codeLines.slice(1) : codeLines).join('\n');
+
+            const execCount = codeCellCount++;
+            let outputs = [];
+            if (includeOutputs) {
+                try {
+                    outputs = await extractCellOutputsForIPYNB(cell, execCount);
+                } catch (err) {
+                    console.warn('IPYNB export: failed to extract outputs of cell', execCount, err);
+                    outputs = [];
+                }
+            }
+
+            ipynbCells.push({
+                cell_type: 'code',
+                execution_count: outputs.length ? execCount : null,
+                metadata: {},
+                source: toSourceLines(codeContent),
+                outputs: outputs
+            });
+        }
+    }
+
+    if (ipynbCells.length === 0) console.warn('No cells found to export.');
+
+    return {
+        cells: ipynbCells,
+        metadata: {
+            kernelspec: { display_name: 'SageMath', language: 'sage', name: 'sagemath' },
+            language_info: { name: 'sage' }
+        },
+        nbformat: 4,
+        nbformat_minor: 5
+    };
+}
+
+async function downloadNotebookAsIPYNB(includeOutputs = true) {
+    if (includeOutputs) showLoadingOverlay();   // image encoding can take a moment
+    try {
+        const ipynbContent = await collectNotebookAsIPYNB(includeOutputs);
+        const jsonString = JSON.stringify(ipynbContent, null, 2);
+
+        const extractedNameBase = extractFilenameBaseFromH1() || 'SageMath_notebook';
+        const suffix = includeOutputs ? '' : '_code_only';
+        const finalFilename = `${extractedNameBase}_${getFormattedDate()}${suffix}.ipynb`;
+
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = finalFilename;
+        document.body.appendChild(link);
+        link.click();
+
+        URL.revokeObjectURL(url);
+        document.body.removeChild(link);
+    } catch (error) {
+        console.error('Error exporting to IPYNB:', error);
+        alert('Failed to export to Jupyter notebook. Check console for details.');
+    } finally {
+        hideLoadingOverlay();
+    }
+}
+
+// Add to nbrunner6.js
+
+// Updated: Import from IPYNB file (ignores outputs, fixes extra newlines)
+function importFromIPYNB(file) {
+    const reader = new FileReader();
+    reader.onload = event => {
+        try {
+            const ipynbJson = JSON.parse(event.target.result);
+            const container = document.querySelector('.nb-worksheet');
+            if (!container) throw new Error('Notebook container not found');
+
+            const shouldWipe = confirm("Wipe existing content before import?");
+            if (shouldWipe) container.innerHTML = '';
+
+            ipynbJson.cells.forEach(cellData => {
+                // Join source array directly (no extra '\n') to preserve original line breaks
+                let source = (cellData.source || []).join('');
+
+                // Optional: Trim trailing whitespace/newlines from the entire source
+                // This helps with IPYNB files that have inconsistent endings
+                source = source.trim();
+
+                // Optional: If you want to clean per-line (e.g., remove trailing spaces per line)
+                // source = source.split('\n').map(line => line.trimEnd()).join('\n');
+
+                if (cellData.cell_type === 'markdown') {
+                    const mdCell = createMarkdownCell(source);
+                    container.appendChild(mdCell);
+                } else if (cellData.cell_type === 'code') {
+                    const codeCell = createCodeCell(source);
+                    container.appendChild(codeCell);
+                    addControlBar(codeCell);
+                    // Outputs are ignored—no processing needed
+                } else {
+                    console.warn(`Skipping unsupported cell type: ${cellData.cell_type}`);
+                }
+            });
+
+            // Reprocess after import (with your existing delays for stability)
+            setTimeout(reprocessNotebook, 500);
+            setTimeout(reprocessNotebook, 1500);
+        } catch (error) {
+            console.error('Error importing IPYNB:', error);
+            alert('Failed to import Jupyter notebook. Ensure it\'s a valid .ipynb file.');
+        }
+    };
+    reader.readAsText(file);
+}
+
+// function clickFirstEvalButton(maxAttempts = 10, delay = 300) {
+//     let attempts = 0;
+    
+//     function tryClick() {
+//         const firstEvalButton = document.querySelector('.sagecell_evalButton');
+        
+//         if (firstEvalButton) {
+//             firstEvalButton.click();
+//             console.log('Clicked first eval button');
+//             return;
+//         }
+        
+//         attempts++;
+//         if (attempts < maxAttempts) {
+//             console.log(`Eval button not found, retrying... (${attempts}/${maxAttempts})`);
+//             setTimeout(tryClick, delay);
+//         } else {
+//             console.log('No eval button found after maximum attempts');
+//         }
+//     }
+    
+//     tryClick();
+// }
+
+// Then in your load handler:
+// window.addEventListener('load', function() {
+//     setTimeout(() => {
+//         document.body.classList.add('notebook-ready');
+//         hideLoadingOverlay();
+        
+//         // Try to click first eval button with retry logic
+//         clickFirstEvalButton();
+//     }, 500);
+// });
+
+// ============================================================
+// MATHJAX  ->  nbformat
+// ============================================================
+
+const MATH_NODE_SELECTOR =
+    'mjx-container, .MathJax, .MathJax_Display, .MathJax_SVG, ' +
+    '.MathJax_SVG_Display, .MathJax_CHTML, .mjx-chtml';
+
+// Content that must NOT be swallowed into a math wrapper.
+function nbHasNonMathContent(el) {
+    if (el.querySelector('img, table, pre, iframe, canvas, ' +
+        '.sagecell_stdout, .sagecell_stderr, .sagecell_pyerr, .dataframe')) return true;
+    for (const s of el.querySelectorAll('svg')) {
+        if (!s.closest(MATH_NODE_SELECTOR)) return true;   // a plot, not glyphs
+    }
+    return false;
+}
+
+/**
+ * For every rendered math node, climb to the outermost element that still
+ * contains nothing but math + text. That element is the export unit, exactly
+ * like `container.closest('div')` in copyOutputToMarkdown().
+ */
+function nbFindMathWrappers(container) {
+    const wrappers = new Set();
+
+    container.querySelectorAll(MATH_NODE_SELECTOR).forEach(node => {
+        if (node.parentElement && node.parentElement.closest(MATH_NODE_SELECTOR)) return; // nested
+        let wrapper = node;
+        let parent = node.parentElement;
+        while (parent && parent !== container &&
+               !nbShouldSkip(parent) && !nbHasNonMathContent(parent)) {
+            wrapper = parent;
+            parent = parent.parentElement;
+        }
+        wrappers.add(wrapper);
+    });
+
+    // keep only the outermost wrappers
+    const result = new Set(wrappers);
+    wrappers.forEach(a => wrappers.forEach(b => {
+        if (a !== b && b.contains(a)) result.delete(a);
+    }));
+    return result;
+}
+
+function nbIsDisplayMath(node) {
+    if (node.getAttribute && node.getAttribute('display') === 'true') return true;
+    const cl = node.classList;
+    if (cl && (cl.contains('MathJax_Display') || cl.contains('MathJax_SVG_Display'))) return true;
+    const p = node.parentElement;
+    if (p && p.classList && p.classList.contains('MathJax_Display')) return true;
+    return false;
+}
+
+/** Recover the original TeX of one rendered math node. */
+function nbTexFromMathNode(node) {
+    // (a) MathJax 2: source kept in a sibling / inner <script type="math/tex">
+    let script = node.querySelector('script[type^="math/tex"]');
+    if (!script) {
+        let sib = node.nextSibling;
+        while (sib && sib.nodeType === 3 && !sib.textContent.trim()) sib = sib.nextSibling;
+        if (sib && sib.nodeType === 1 && sib.tagName === 'SCRIPT' &&
+            /^math\/tex/.test(sib.getAttribute('type') || '')) script = sib;
+    }
+    if (script && script.textContent.trim()) {
+        return {
+            tex: script.textContent.trim(),
+            display: /mode\s*=\s*display/.test(script.getAttribute('type') || ''),
+            source: script
+        };
+    }
+
+    // (b) MathJax 3: assistive MathML carries the TeX annotation
+    const ann = node.querySelector('annotation[encoding="application/x-tex"]');
+    if (ann && ann.textContent.trim()) {
+        return { tex: ann.textContent.trim(), display: nbIsDisplayMath(node), source: null };
+    }
+
+    // (c) some builds stash it in an attribute
+    for (const attr of ['data-original-tex', 'data-tex', 'data-latex']) {
+        const v = node.getAttribute && node.getAttribute(attr);
+        if (v && v.trim()) {
+            return { tex: v.trim(), display: nbIsDisplayMath(node), source: null };
+        }
+    }
+    return null;
+}
+
+/**
+ * Clone a math wrapper and turn the rendered MathJax back into raw TeX
+ * (or native MathML when no TeX is recoverable), so the resulting HTML is
+ * self-contained and Jupyter can typeset it itself.
+ */
+function nbConvertMathWrapper(wrapper) {
+    const host = document.createElement('div');
+    host.appendChild(wrapper.cloneNode(true));
+
+    host.querySelectorAll(
+        '.MathJax_Preview, .sagecell_spinner, .sagecell_evalButton, button, style, ' +
+        '.control-bar, .control-ai-bar, .bulk-select-wrapper, .sagecell-number'
+    ).forEach(n => n.remove());
+
+    const texs = [];
+    let complete = true;
+
+    Array.from(host.querySelectorAll(MATH_NODE_SELECTOR)).forEach(node => {
+        if (!host.contains(node)) return;                                  // gone with an ancestor
+        if (node.parentElement && node.parentElement.closest(MATH_NODE_SELECTOR)) return;
+
+        const info = nbTexFromMathNode(node);
+        if (info) {
+            texs.push(info);
+            const tex = nbMathTex(info);                       // \displaystyle prefix
+            if (info.source && host.contains(info.source)) info.source.remove();
+            node.replaceWith(document.createTextNode('\\(' + tex + '\\)'));   // always inline
+        } else {
+            // no TeX: fall back to native MathML (renders in Jupyter and in browsers)
+            const mml = node.querySelector('mjx-assistive-mml > math, math');
+            if (mml) node.replaceWith(mml.cloneNode(true));
+            else complete = false;                                          // keep as-is
+        }
+    });
+
+    // leftovers would render the math a second time
+    host.querySelectorAll('mjx-assistive-mml').forEach(n => n.remove());
+    host.querySelectorAll('script[type^="math/tex"]').forEach(n => n.remove());
+
+     // plain-text twin: Sage-style repr
+    let plain = (host.textContent || '')
+        .replace(/\\\((.*?)\\\)/gs, (m, t) => nbTexToPlain(t))
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+    // is the wrapper *pure* math (no prose around it)? -> text/latex is faithful
+    const bare = document.createElement('div');
+    bare.appendChild(wrapper.cloneNode(true));
+    Array.from(bare.querySelectorAll(MATH_NODE_SELECTOR)).forEach(n => n.remove());
+    bare.querySelectorAll('script[type^="math/tex"], .MathJax_Preview').forEach(n => n.remove());
+    const onlyMath = (bare.textContent || '').trim() === '';
+
+    return { html: host.innerHTML.trim(), plain, texs, complete, onlyMath };
+}
+
+function nbMathOutput(wrapper /* no executionCount: display_data has none */) {
+    const m = nbConvertMathWrapper(wrapper);
+    if (!m.html && !m.plain) return null;
+
+    const data = {};
+
+    // text/html first, exactly as Sage writes it
+    data['text/html'] = nbTextLines(nbWrapSageHtml(m.html));
+
+    // text/latex only when the wrapper is pure math and TeX was recovered
+    if (m.onlyMath && m.texs.length) {
+        data['text/latex'] = nbTextLines(
+            '$' + m.texs.map(nbMathTex).join(' ') + '$'
+        );
+    }
+
+    data['text/plain'] = nbTextLines(m.plain || '<math output>');
+
+    return {
+        data,
+        metadata: {},
+        output_type: 'display_data'
+    };
+}
+
+// Sage emits inline delimiters always; "display" is expressed as \displaystyle.
+function nbMathTex(info) {
+    const tex = info.tex.replace(/^\s*\\displaystyle\s*/, '');
+    return (info.display ? '\\displaystyle ' : '') + tex;
+}
+
+// Sage wraps text-only math output in <html>...</html>.
+function nbWrapSageHtml(inner) {
+    return /<[a-zA-Z!/]/.test(inner) ? inner : '<html>' + inner + '</html>';
+}
+
+/**
+ * Approximate Sage's plain repr from TeX. text/plain is only a fallback
+ * (every real frontend prefers text/html), so best-effort is fine.
+ */
+function nbTexToPlain(tex) {
+    let s = tex;
+    for (let i = 0; i < 6; i++) {
+        s = s.replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '($1)/($2)')
+             .replace(/\\sqrt\s*\{([^{}]*)\}/g, 'sqrt($1)')
+             .replace(/\\(?:mathit|mathrm|mathbf|text|operatorname)\s*\{([^{}]*)\}/g, '$1')
+             .replace(/\^\s*\{([^{}]*)\}/g, '^$1')
+             .replace(/_\s*\{([^{}]*)\}/g, '_$1');
+    }
+    return s
+        .replace(/\\displaystyle\s*/g, '')
+        .replace(/\\left\s*|\\right\s*/g, '')
+        .replace(/\\(?:cdot|times)\s*/g, '*')
+        .replace(/\\(?:mapsto|to|rightarrow)\s*/g, ' -> ')
+        .replace(/\\(?:leq|le)\s*/g, ' <= ').replace(/\\(?:geq|ge)\s*/g, ' >= ')
+        .replace(/\\neq\s*/g, ' != ')
+        .replace(/\\infty/g, 'Infinity').replace(/\\pi\b/g, 'pi')
+        .replace(/\\[,;:!]|\\quad|\\qquad/g, ' ')
+        .replace(/\\\\/g, '\n')
+        .replace(/\\[a-zA-Z]+\s*/g, m => m.trim().slice(1) + ' ') // \alpha -> alpha
+        .replace(/[{}$]/g, '')
+        .replace(/\(([A-Za-z0-9_.]+)\)/g, '$1')                    // undo cheap parens
+        .replace(/[ \t]{2,}/g, ' ')
+        .trim();
+}
+
+// ============================================================
+// IPYNB OUTPUT EXTRACTION (SageCell DOM  ->  nbformat outputs)
+// ============================================================
+
+// UI chrome that must never be treated as output
+const SAGE_OUTPUT_SKIP_CLASSES = [
+    'sagecell_spinner', 'sagecell_evalButton', 'sagecell_poweredBy',
+    'sagecell_permalink', 'sagecell_sessionFiles', 'sagecell_messages',
+    'sagecell_templates', 'sagecell_interactControls', 'sagecell_icon',
+    'sagecell-number', 'control-bar', 'control-ai-bar', 'bulk-select-wrapper'
+];
+
+// nbformat wants a list of lines, each ending with '\n' except the last one.
+function nbTextLines(text) {
+    text = String(text == null ? '' : text)
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+    const parts = text.split('\n');
+    const lines = parts.map((l, i) => (i < parts.length - 1 ? l + '\n' : l));
+    // a trailing '\n' produces an empty last element -> drop it
+    if (lines.length && lines[lines.length - 1] === '') lines.pop();
+    return lines;
+}
+
+function nbShouldSkip(el) {
+    if (!el || el.nodeType !== 1) return true;
+    if (el.tagName === 'STYLE' || el.tagName === 'BUTTON') return true;
+    for (const c of SAGE_OUTPUT_SKIP_CLASSES) {
+        if (el.classList && el.classList.contains(c)) return true;
+    }
+    return false;
+}
+
+/**
+ * Walk the SageCell output container and return an ORDERED list of
+ * {kind, el} descriptors. Order matters so the .ipynb looks like the notebook.
+ */
+function nbCollectOutputNodes(container) {
+    const items = [];
+    const mathWrappers = nbFindMathWrappers(container);   // NEW
+
+    function visit(node) {
+        if (node.nodeType !== 1) return;
+        const el = node;
+        if (nbShouldSkip(el)) return;
+
+        // NEW: a math wrapper is exported as one unit — never descend into it
+        if (mathWrappers.has(el)) { items.push({ kind: 'math', el }); return; }
+
+        const cls = el.classList;
+        const tag = el.tagName;
+
+        if (cls.contains('sagecell_pyerr'))  { items.push({ kind: 'error',  el }); return; }
+        if (cls.contains('sagecell_stderr')) { items.push({ kind: 'stderr', el }); return; }
+        if (cls.contains('sagecell_stdout')) { items.push({ kind: 'stdout', el }); return; }
+
+        if (tag === 'IMG')    { items.push({ kind: 'image', el }); return; }
+        if (tag === 'svg' || tag === 'SVG') { items.push({ kind: 'svg', el }); return; }
+        if (tag === 'SCRIPT') return;                       // math/tex handled inside wrappers
+        if (tag === 'TABLE')  { items.push({ kind: 'html', el }); return; }
+        if (tag === 'PRE')    { items.push({ kind: 'text', el }); return; }
+        if (tag === 'IFRAME' || tag === 'CANVAS') { items.push({ kind: 'unsupported', el }); return; }
+
+        Array.from(el.childNodes).forEach(visit);
+    }
+
+    Array.from(container.childNodes).forEach(visit);
+    return items;
+}
+
+/** Turn an image URL (http(s) or data:) into { mime, base64 }. */
+async function nbImageToBase64(src) {
+    if (!src) return null;
+
+    // data: URI -> use directly
+    const dm = String(src).match(/^data:([^;,]+)?(;base64)?,(.*)$/i);
+    if (dm) {
+        const mime = dm[1] || 'image/png';
+        if (dm[2]) return { mime, base64: dm[3] };
+        try {
+            const raw = decodeURIComponent(dm[3]);
+            return { mime, base64: btoa(unescape(encodeURIComponent(raw))) };
+        } catch (e) { return null; }
+    }
+
+    // 1) fetch (SageCell servers normally send permissive CORS headers)
+    try {
+        const res = await fetch(src, { cache: 'force-cache' });
+        if (res.ok) {
+            const blob = await res.blob();
+            const dataUrl = await new Promise((resolve, reject) => {
+                const r = new FileReader();
+                r.onloadend = () => resolve(r.result);
+                r.onerror = reject;
+                r.readAsDataURL(blob);
+            });
+            const m = String(dataUrl).match(/^data:([^;]+);base64,(.*)$/);
+            if (m) return { mime: m[1] || blob.type || 'image/png', base64: m[2] };
+        }
+    } catch (e) {
+        console.warn('IPYNB export: fetch failed for image, trying canvas:', src, e);
+    }
+
+    // 2) canvas fallback (reuses your existing helper)
+    try {
+        const dataUrl = await convertImageToBase64(src);
+        const m = String(dataUrl).match(/^data:([^;]+);base64,(.*)$/);
+        if (m) return { mime: m[1], base64: m[2] };
+    } catch (e) {
+        console.warn('IPYNB export: canvas failed for image:', src, e);
+    }
+
+    return null;
+}
+
+/** Build an nbformat "error" output from a .sagecell_pyerr element. */
+function nbErrorOutput(el) {
+    const text = String(el.textContent || '').replace(/\s+$/, '');
+    const lines = text.split('\n');
+    const lastMeaningful = [...lines].reverse().find(l => l.trim() !== '') || '';
+    const m = lastMeaningful.match(
+        /^\s*([A-Za-z_][\w.]*(?:Error|Exception|Interrupt|Exit|Warning|Halt))\s*:?\s*([\s\S]*)$/
+    );
+    return {
+        output_type: 'error',
+        ename: m ? m[1] : 'Error',
+        evalue: m ? m[2].trim() : lastMeaningful.trim(),
+        traceback: lines
+    };
+}
+
+/**
+ * Extract all outputs of one .nb-code-cell as an array of nbformat outputs.
+ * Async because images have to be downloaded / re-encoded.
+ */
+async function extractCellOutputsForIPYNB(cell, executionCount) {
+    const outputs = [];
+    const container = cell.querySelector('.sagecell_sessionOutput')
+                   || cell.querySelector('.sagecell_output');
+    if (!container) return outputs;
+
+    const items = nbCollectOutputNodes(container);
+    const seenImages = new Set();
+    const seenText = new Set();
+
+    for (const item of items) {
+        const el = item.el;
+
+        switch (item.kind) {
+
+            case 'error':
+                outputs.push(nbErrorOutput(el));
+                break;
+
+            case 'stdout':
+            case 'stderr': {
+                const txt = el.textContent || '';
+                if (!txt.trim()) break;
+                outputs.push({
+                    output_type: 'stream',
+                    name: item.kind === 'stderr' ? 'stderr' : 'stdout',
+                    text: nbTextLines(txt)
+                });
+                break;
+            }
+
+            case 'text': {
+                const txt = (el.textContent || '').trim();
+                if (!txt) break;
+                const key = 'pre:' + txt;
+                if (seenText.has(key)) break;
+                seenText.add(key);
+                outputs.push({
+                    output_type: 'execute_result',
+                    execution_count: executionCount,
+                    data: { 'text/plain': nbTextLines(txt) },
+                    metadata: {}
+                });
+                break;
+            }
+
+            case 'html': {
+                const html = el.outerHTML;
+                const key = 'html:' + html.length + ':' + (el.textContent || '').slice(0, 80);
+                if (seenText.has(key)) break;
+                seenText.add(key);
+                outputs.push({
+                    output_type: 'execute_result',
+                    execution_count: executionCount,
+                    data: {
+                        'text/html': nbTextLines(html),
+                        'text/plain': nbTextLines((el.textContent || '').trim())
+                    },
+                    metadata: {}
+                });
+                break;
+            }
+
+            case 'math': {
+                const out = nbMathOutput(el);
+                if (!out) break;
+                const sig = 'math:' + out.data['text/html'].join('');
+                if (seenText.has(sig)) break;
+                seenText.add(sig);
+                outputs.push(out);
+                break;
+            }
+
+            case 'svg': {
+                outputs.push({
+                    output_type: 'display_data',
+                    data: {
+                        'image/svg+xml': nbTextLines(el.outerHTML),
+                        'text/plain': ['<svg image>']
+                    },
+                    metadata: {}
+                });
+                break;
+            }
+
+            case 'image': {
+                const src = el.src;
+                if (!src || seenImages.has(src)) break;
+                seenImages.add(src);
+
+                const img = await nbImageToBase64(src);
+                if (!img) {
+                    // Could not embed -> keep at least a reference, never lose info
+                    outputs.push({
+                        output_type: 'display_data',
+                        data: {
+                            'text/html': nbTextLines('<img src="' + src + '">'),
+                            'text/plain': nbTextLines('<image: ' + src + '>')
+                        },
+                        metadata: {}
+                    });
+                    break;
+                }
+
+                const data = {};
+                if (/svg/i.test(img.mime)) {
+                    let svgText = '';
+                    try { svgText = decodeURIComponent(escape(atob(img.base64))); } catch (e) {}
+                    data['image/svg+xml'] = nbTextLines(svgText);
+                } else {
+                    // nbformat: base64 payload WITHOUT the data: prefix
+                    data[/jpe?g/i.test(img.mime) ? 'image/jpeg' : 'image/png'] = img.base64;
+                }
+                data['text/plain'] = ['<image>'];
+
+                const meta = {};
+                if (el.naturalWidth)  meta.width  = el.naturalWidth;
+                if (el.naturalHeight) meta.height = el.naturalHeight;
+
+                outputs.push({
+                    output_type: 'display_data',
+                    data,
+                    metadata: Object.keys(meta).length ? { image: meta } : {}
+                });
+                break;
+            }
+
+            case 'unsupported':
+                outputs.push({
+                    output_type: 'display_data',
+                    data: { 'text/plain': ['<interactive / 3D output — not exportable to .ipynb>'] },
+                    metadata: {}
+                });
+                break;
+        }
+    }
+
+    return outputs;
+}
+
+// Function to split a cell at the cursor position (works for both code and markdown cells)
+function splitCellAtCursor(cell) {
+    // Detect cell type
+    const isCodeCell = cell.classList.contains('nb-code-cell');
+    const isMarkdownCell = cell.classList.contains('nb-markdown-cell');
+
+    if (!isCodeCell && !isMarkdownCell) {
+        console.error('Unknown cell type');
+        alert('Cannot split this type of cell.');
+        return;
+    }
+
+    let contentBefore = '';
+    let contentAfter = '';
+
+    if (isCodeCell) {
+        // Handle code cell
+        const codeMirrorElem = cell.querySelector('.CodeMirror');
+        if (!codeMirrorElem || !codeMirrorElem.CodeMirror) {
+            console.error('CodeMirror instance not found in cell');
+            alert('Could not find code editor in this cell.');
+            return;
+        }
+
+        const cm = codeMirrorElem.CodeMirror;
+        const cursor = cm.getCursor();
+        const line = cursor.line;
+        const ch = cursor.ch;
+        const allCode = cm.getValue();
+        const lines = allCode.split('\n');
+
+        // Check if there's anything to split
+        if (line >= lines.length || (line === lines.length - 1 && ch >= lines[line].length)) {
+            alert('Cursor is at the end of the cell. Nothing to split.');
+            return;
+        }
+
+        // Split the code
+        if (line >= lines.length) {
+            contentBefore = allCode;
+            contentAfter = '';
+        } else {
+            const currentLine = lines[line];
+            const firstPartLines = lines.slice(0, line);
+            firstPartLines.push(currentLine.substring(0, ch));
+            contentBefore = firstPartLines.join('\n');
+
+            const secondPartLines = [];
+            const remainderOfLine = currentLine.substring(ch);
+            if (remainderOfLine) {
+                secondPartLines.push(remainderOfLine);
+            }
+            secondPartLines.push(...lines.slice(line + 1));
+            contentAfter = secondPartLines.join('\n');
+        }
+
+        contentBefore = contentBefore.trimEnd();
+        contentAfter = contentAfter.trimStart();
+
+        // Update the current cell
+        cm.setValue(contentBefore);
+        cm.refresh();
+    }
+    else if (isMarkdownCell) {
+        // Handle markdown cell
+        let editorContent = '';
+
+        if (cell.cmEditor) {
+            // CodeMirror-based markdown cell
+            const cm = cell.cmEditor;
+            const cursor = cm.getCursor();
+            const line = cursor.line;
+            const ch = cursor.ch;
+            const allText = cm.getValue();
+            const lines = allText.split('\n');
+
+            // Check if there's anything to split
+            if (line >= lines.length || (line === lines.length - 1 && ch >= lines[line].length)) {
+                alert('Cursor is at the end of the cell. Nothing to split.');
+                return;
+            }
+
+            // Split the markdown
+            if (line >= lines.length) {
+                contentBefore = allText;
+                contentAfter = '';
+            } else {
+                const currentLine = lines[line];
+                const firstPartLines = lines.slice(0, line);
+                firstPartLines.push(currentLine.substring(0, ch));
+                contentBefore = firstPartLines.join('\n');
+
+                const secondPartLines = [];
+                const remainderOfLine = currentLine.substring(ch);
+                if (remainderOfLine) {
+                    secondPartLines.push(remainderOfLine);
+                }
+                secondPartLines.push(...lines.slice(line + 1));
+                contentAfter = secondPartLines.join('\n');
+            }
+
+            contentBefore = contentBefore.trimEnd();
+            contentAfter = contentAfter.trimStart();
+
+            // Update the current cell
+            cm.setValue(contentBefore);
+            cm.refresh();
+        }
+        else {
+            // Traditional textarea-based markdown cell
+            const textarea = cell.querySelector('textarea');
+            if (!textarea) {
+                console.error('Textarea not found in markdown cell');
+                alert('Could not find editor in this markdown cell.');
+                return;
+            }
+
+            const allText = textarea.value;
+            const cursorPos = textarea.selectionStart;
+            const cursorEnd = textarea.selectionEnd;
+
+            // Check if there's anything to split
+            if (cursorPos >= allText.length) {
+                alert('Cursor is at the end of the cell. Nothing to split.');
+                return;
+            }
+
+            contentBefore = allText.substring(0, cursorPos).trimEnd();
+            contentAfter = allText.substring(cursorEnd).trimStart();
+
+            // Update the current cell
+            textarea.value = contentBefore;
+            if (cell.cmEditor) {
+                cell.cmEditor.setValue(contentBefore);
+            }
+        }
+    }
+
+    // Create a new cell below with the split content (if not empty)
+    // Create a new cell below with the split content (if not empty)
+if (contentAfter.trim()) {
+    let newCell;
+
+    if (isCodeCell) {
+        newCell = createCodeCell(contentAfter);
+    } else if (isMarkdownCell) {
+        newCell = createMarkdownCell(contentAfter);
+    }
+
+    // Insert the new cell after the current one
+    cell.parentNode.insertBefore(newCell, cell.nextSibling);
+
+    // Add control bar
+    addControlBar(newCell);
+
+    // Reprocess notebook to initialize properly
+    setTimeout(() => {
+        if (isCodeCell) {
+            reprocessNotebook();
+            removeSageCellNumbering();
+            addSageCellNumbering();
+            cleanupComputeDivs();
+        }
+
+        // Focus on the new cell
+        setTimeout(() => {
+            if (isCodeCell) {
+                const newCm = newCell.querySelector('.CodeMirror');
+                if (newCm && newCm.CodeMirror) {
+                    newCm.CodeMirror.focus();
+                    newCm.CodeMirror.setCursor(0, 0);
+                }
+            } else if (isMarkdownCell) {
+                // Set markdown cell to edit mode
+                const cmElement = newCell.querySelector('.CodeMirror');
+                const preview = newCell.querySelector('.markdown-preview');
+                const editButton = newCell.querySelector('.control-bar button:first-child');
+
+                if (newCell.cmEditor && cmElement && preview) {
+                    // Show editor and preview
+                    cmElement.style.display = 'block';
+                    preview.style.display = 'block';
+                    
+                    // Refresh CodeMirror
+                    newCell.cmEditor.refresh();
+                    newCell.cmEditor.focus();
+                    newCell.cmEditor.setCursor(0, 0);
+                    
+                    // Update button text to "View"
+                    if (editButton) {
+                        editButton.textContent = 'View';
+                    }
+                }
+            }
+        }, 300);
+    }, 100);
+} else {
+    console.log('Second part is empty, no new cell created');
+}
+}
+
+
+// Keyboard shortcuts for navbar actions
+document.addEventListener('keydown', function (event) {
+    // Use Ctrl + <key>
+    if (event.ctrlKey) {
+        const key = event.key.toLowerCase();
+        const actions = {
+            r: () => document.getElementById('runAllCellsButton')?.click(),
+            s: () => saveHtml(),
+            e: () => document.getElementById('editCells')?.click(),
+            b: () => toggleNavbar(),
+            q: () => document.getElementById('bulkActionsBtn')?.click(),
+            k: () => document.getElementById('restartKernelButton')?.click(),
+            i: () => document.getElementById('exportCells')?.click(),   
+            p: () => document.getElementById('exportCells')?.click(),
+        };
+        if (actions[key]) {
+            event.preventDefault();
+            actions[key]();
+        }
+    }
+});
+
+// Reveal the page when fully loaded
+window.addEventListener('load', function() {
+    // Wait for SageCells and other elements to initialize
+    setTimeout(() => {
+        document.body.classList.add('notebook-ready');
+    }, 500); // Adjust delay as needed
+});
+
+// ============================================================
+// UI STATE (eval buttons / full width / code input visibility)
+// ============================================================
+
+// NOTE: these live on `window` so the inline <script> in the saved HTML
+// (which runs AFTER this file) can re-assign them without lexical clashes.
+if (typeof window.hideCodeInputState === 'undefined') window.hideCodeInputState = false;
+
+// ---- eval ("▶ Run") buttons -------------------------------------------------
+function ensureEvalButtonStyle() {
+    if (document.getElementById('eval-btn-toggle-style')) return;
+    const style = document.createElement('style');
+    style.id = 'eval-btn-toggle-style';
+    style.textContent =
+        'body.sagecell-eval-hidden .sagecell button.sagecell_evalButton { display: none !important; }';
+    document.head.appendChild(style);
+}
+
+function applyEvalButtonsState() {
+    ensureEvalButtonStyle();
+    document.body.classList.toggle('sagecell-eval-hidden', !!toggleEvalBtnsState);
+}
+
+function setEvalButtonsHidden(hidden) {
+    toggleEvalBtnsState = !!hidden;
+    applyEvalButtonsState();
+}
+
+function toggleEvalButtons() {
+    setEvalButtonsHidden(!toggleEvalBtnsState);
+}
+
+// ---- full width -------------------------------------------------------------
+function applyFullWidthState() {
+    const main = document.getElementById('main');
+    if (main) main.style.maxWidth = isFullWidthState ? '90%' : '750px';
+}
+
+function setFullWidth(on) {
+    isFullWidthState = !!on;
+    applyFullWidthState();
+}
+
+function flipMaxWidth() {
+    setFullWidth(!isFullWidthState);
+}
+
+// ---- code input (editor) visibility ----------------------------------------
+function ensureInputHideStyle() {
+    if (document.getElementById('nb-input-toggle-style')) return;
+    const style = document.createElement('style');
+    style.id = 'nb-input-toggle-style';
+    style.textContent =
+        'body.nb-input-hidden .nb-input,' +
+        'body.nb-input-hidden .compute .sagecell_input { display: none !important; }';
+    document.head.appendChild(style);
+}
+
+function isCodeInputHidden() {
+    return !!window.hideCodeInputState;
+}
+
+function applyCodeInputState() {
+    ensureInputHideStyle();
+    document.body.classList.toggle('nb-input-hidden', isCodeInputHidden());
+}
+
+function setCodeInputHidden(hidden) {
+    window.hideCodeInputState = !!hidden;
+    applyCodeInputState();
+}
+
+// Kept for backwards compatibility (old navbar button / external calls).
+function toggleInput() {
+    setCodeInputHidden(!isCodeInputHidden());
+}
+
+// ---- apply everything (used on load and after import) ----------------------
+function restoreUIState() {
+    applyEvalButtonsState();
+    applyFullWidthState();
+    applyCodeInputState();
+}
+
+// ============================================================
+// EDIT HISTORY PANEL (controlled from Settings → Notebook Settings)
+// ============================================================
+if (typeof window.historyPanelVisible === 'undefined') window.historyPanelVisible = false;
+
+function ensureHistoryPanel() {
+    let panel = document.getElementById('history-panel');
+    if (panel) return panel;
+
+    panel = document.createElement('div');
+    panel.id = 'history-panel';
+    panel.style.cssText =
+        'position:fixed;bottom:0;right:0;width:320px;max-height:50vh;background:#fff;' +
+        'box-shadow:0 -2px 12px rgba(0,0,0,.2);border-radius:8px 0 0 0;z-index:9995;' +
+        'display:none;flex-direction:column;font-family:Arial,sans-serif;overflow:hidden;';
+
+    const header = document.createElement('div');
+    header.style.cssText =
+        'padding:8px 12px;background:var(--main-color,#4CAF50);color:#fff;display:flex;' +
+        'justify-content:space-between;align-items:center;font-weight:700;';
+    header.innerHTML = '<span>Edit History</span>';
+
+    const close = document.createElement('button');
+    close.textContent = '×';
+    close.title = 'Hide history panel';
+    close.style.cssText = 'background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1;';
+    close.onclick = () => setHistoryPanelVisible(false);
+    header.appendChild(close);
+
+    const body = document.createElement('div');
+    body.id = 'history-panel-body';
+    body.style.cssText = 'overflow-y:auto;flex:1;';
+
+    panel.appendChild(header);
+    panel.appendChild(body);
+    document.body.appendChild(panel);
+    return panel;
+}
+
+function isHistoryPanelVisible() {
+    const panel = document.getElementById('history-panel');
+    return !!panel && panel.style.display !== 'none';
+}
+
+function setHistoryPanelVisible(show) {
+    const panel = ensureHistoryPanel();
+    panel.style.display = show ? 'flex' : 'none';
+    window.historyPanelVisible = !!show;
+
+    if (show && window.NotebookHistory && typeof window.NotebookHistory.refreshPanel === 'function') {
+        window.NotebookHistory.refreshPanel(true);
+    }
+
+    // keep the Settings checkbox in sync if the modal happens to be open
+    const cb = document.getElementById('showHistoryPanelToggle');
+    if (cb) cb.checked = !!show;
+}
+
+function toggleHistoryPanel() {
+    setHistoryPanelVisible(!isHistoryPanelVisible());
+}
+
+// ============================================================
+// PRELOADED CODE
+// ============================================================
+
+// A cell is "preloaded" if its first non-empty line starts with "# @preload"
+// (anything may follow, e.g. "# @preload: my custom imports")
+const PRELOAD_MARKER_REGEX = /^\s*#\s*PRELOAD\b/i;
+
+// Delimiter joining multiple preload cells inside the PRELOAD string
+const PRELOAD_DELIMITER = "# ===";
+
+function cleanPreloadCode(code) {
+    return String(code || '').replace(/[\u200B\u200C\u200D\uFEFF]/g, '').trim();
+}
+
+// True if a code cell's first non-empty line carries the @preload marker.
+function isPreloadCell(cell) {
+    if (!cell || !cell.classList.contains('nb-code-cell')) return false;
+    const code = cleanPreloadCode(getCodeFromCodeCell(cell));
+    if (!code) return false;
+    const firstLine = code.split('\n').find(l => l.trim() !== '') || '';
+    return PRELOAD_MARKER_REGEX.test(firstLine);
+}
+
+// Parse the stored PRELOAD string into an ordered array of code blocks.
+function parsePreloadString(str) {
+    if (!str || !str.trim()) return [];
+    return str
+        .split(new RegExp('^[ \\t]*' + PRELOAD_DELIMITER + '[ \\t]*$', 'm'))
+        .map(s => cleanPreloadCode(s))
+        .filter(s => s !== '');
+}
+
+// Build the PRELOAD string from the current preload cells (document order).
+function buildPreloadString() {
+    const blocks = [];
+    document.querySelectorAll('.nb-code-cell').forEach(cell => {
+        if (isPreloadCell(cell)) {
+            const code = cleanPreloadCode(getCodeFromCodeCell(cell));
+            if (code) blocks.push(code);
+        }
+    });
+    return blocks.join('\n' + PRELOAD_DELIMITER + '\n');
+}
+
+
+//   createCodeCell -> insert into DOM -> addControlBar -> reprocessNotebook.
+function applyPreloadCells() {
+    const preloadBlocks = parsePreloadString(PRELOAD);
+    if (preloadBlocks.length === 0) return;
+
+    let existing = Array.from(document.querySelectorAll('.nb-code-cell')).filter(isPreloadCell);
+    let inserted = false;
+
+    if (existing.length === 0) {
+        // ---- Rule 1: no preload cells -> insert before the first code cell ----
+        const firstCodeCell = document.querySelector('.nb-code-cell');
+        const worksheet = document.querySelector('.nb-worksheet');
+
+        preloadBlocks.forEach(block => {
+            const newCell = createCodeCell(cleanPreloadCode(block));
+            if (firstCodeCell) {
+                firstCodeCell.parentNode.insertBefore(newCell, firstCodeCell);
+            } else if (worksheet) {
+                worksheet.appendChild(newCell);
+            } else {
+                return; // nowhere sensible to put it
+            }
+            addControlBar(newCell);
+            inserted = true;
+        });
+    } else {
+        // ---- Rules 2 & 3 ----
+        let lastMatched = null;
+        preloadBlocks.forEach(block => {
+            const target = cleanPreloadCode(block);
+            const match = existing.find(c => cleanPreloadCode(getCodeFromCodeCell(c)) === target);
+
+            if (match) {
+                // Rule 3: content matches -> leave untouched.
+                lastMatched = match;
+            } else {
+                // Rule 2: missing -> insert immediately after the last matched cell.
+                const newCell = createCodeCell(target);
+                if (lastMatched) {
+                    lastMatched.parentNode.insertBefore(newCell, lastMatched.nextSibling);
+                } else {
+                    existing[0].parentNode.insertBefore(newCell, existing[0]);
+                }
+                addControlBar(newCell);
+                lastMatched = newCell;
+                existing.push(newCell);
+                inserted = true;
+            }
+        });
+    }
+
+    // One reprocess at the end, only if we actually added something.
+    if (inserted) {
+        reprocessNotebook();
+    }
+}
+
+
+
+
+// ============================================================
+// BULK CELL ACTIONS / MERGING  (version 18)
+// ============================================================
+
+let bulkCheckboxesVisible = false;
+
+
+// ---- Cell helpers ----------------------------------------------------------
+function getAllBulkCells() {
+    return Array.from(document.querySelectorAll('.nb-cell.nb-code-cell, .nb-cell.nb-markdown-cell'));
+}
+function getSelectedCells() {
+    return getAllBulkCells().filter(c => c.classList.contains('cell-bulk-selected'));
+}
+function getCellContent(cell) {
+    if (cell.classList.contains('nb-markdown-cell')) {
+        if (cell.cmEditor) {
+            return cell.cmEditor.getValue().replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+        }
+        const ta = cell.querySelector('textarea');
+        return ta ? (ta.value || ta.getAttribute('data-original') || '') : '';
+    }
+    if (cell.classList.contains('nb-code-cell')) {
+        return getCodeFromCodeCell(cell); // already strips zero-width chars
+    }
+    return '';
+}
+
+// ---- Selection state -------------------------------------------------------
+function setCellSelected(cell, selected) {
+    cell.classList.toggle('cell-bulk-selected', selected);
+    const cb = cell.querySelector('.bulk-select-checkbox');
+    if (cb) cb.checked = selected; // programmatic set does NOT fire 'change'
+    updateBulkToolbar();
+}
+function toggleCellSelected(cell) {
+    setCellSelected(cell, !cell.classList.contains('cell-bulk-selected'));
+}
+function resetBulkSelection() {
+    getAllBulkCells().forEach(c => {
+        c.classList.remove('cell-bulk-selected');
+        const cb = c.querySelector('.bulk-select-checkbox');
+        if (cb) cb.checked = false;
+    });
+    updateBulkToolbar();
+}
+function selectAllBulkCells() {
+    getAllBulkCells().forEach(c => setCellSelected(c, true));
+}
+
+// ---- Checkbox management ---------------------------------------------------
+function addCellCheckbox(cell) {
+    if (cell.querySelector('.bulk-select-wrapper')) return;
+    const wrapper = document.createElement('label');
+    wrapper.className = 'bulk-select-wrapper';
+    wrapper.title = 'Select cell';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'bulk-select-checkbox';
+    cb.checked = cell.classList.contains('cell-bulk-selected');
+    cb.addEventListener('change', () => setCellSelected(cell, cb.checked));
+
+    wrapper.appendChild(cb);
+    cell.appendChild(wrapper);
+}
+function removeCellCheckbox(cell) {
+    const w = cell.querySelector('.bulk-select-wrapper');
+    if (w) w.remove();
+}
+
+// ---- Show / hide checkboxes ------------------------------------------------
+function showBulkCheckboxes() {
+    bulkCheckboxesVisible = true;
+    document.body.classList.add('bulk-checkboxes-visible');
+    getAllBulkCells().forEach(addCellCheckbox);
+    showBulkToolbar();
+    updateBulkToolbar();
+}
+function hideBulkCheckboxes() {
+    bulkCheckboxesVisible = false;
+    document.body.classList.remove('bulk-checkboxes-visible');
+    resetBulkSelection();                       // hide+show => fresh state
+    getAllBulkCells().forEach(removeCellCheckbox);
+    hideBulkToolbar();
+}
+// Navbar button: pure toggle, never auto-selects.
+function toggleBulkCheckboxes() {
+    if (bulkCheckboxesVisible) hideBulkCheckboxes();
+    else showBulkCheckboxes();
+}
+
+// ---- Bulk operations -------------------------------------------------------
+function bulkMove(direction) {
+    const selected = getSelectedCells();
+    if (selected.length === 0) return;
+    if (direction === 'up') {
+        selected.forEach(cell => moveCell(cell, 'up'));            // top -> bottom
+    } else {
+        for (let i = selected.length - 1; i >= 0; i--) moveCell(selected[i], 'down'); // bottom -> top
+    }
+}
+
+function bulkDelete() {
+    const selected = getSelectedCells();
+    if (selected.length === 0) return;
+    if (!confirm(`Delete ${selected.length} selected cell(s)?`)) return;
+    selected.forEach(cell => cell.remove());
+    removeSageCellNumbering();
+    addSageCellNumbering();
+    updateBulkToolbar();
+}
+
+// Build a fresh, detached copy of a cell (same type + content).
+function makeBulkCellCopy(cell) {
+    const content = getCellContent(cell);
+    if (cell.classList.contains('nb-code-cell')) {
+        return { node: createCodeCell(content), isCode: true };
+    }
+    return { node: createMarkdownCell(content), isCode: false };
+}
+
+// Duplicate every selected cell, inserting ALL copies (in order)
+// immediately after the last selected cell.
+function bulkDuplicate() {
+    const selected = getSelectedCells(); // document order
+    if (selected.length === 0) return;
+
+    const last = selected[selected.length - 1];
+    let insertAfter = last;
+    let anyCode = false;
+
+    selected.forEach(cell => {
+        const { node, isCode } = makeBulkCellCopy(cell);
+        last.parentNode.insertBefore(node, insertAfter.nextSibling);
+        insertAfter = node;
+        if (isCode) {
+            addControlBar(node);   // markdown copies get their bar from createMarkdownCell
+            anyCode = true;
+        }
+    });
+
+    if (anyCode) reprocessNotebook();
+    removeSageCellNumbering();
+    addSageCellNumbering();
+    cleanupComputeDivs();
+    updateBulkToolbar();
+}
+
+// Merge: all content concatenated into the FIRST selected cell.
+// Resulting type is inherited from the first selected cell.
+function bulkMergeSelected() {
+    const selected = getSelectedCells();
+    if (selected.length < 2) {
+        alert('Select at least two cells to merge.');
+        return;
+    }
+
+    const first = selected[0];
+    const isCode = first.classList.contains('nb-code-cell');
+
+    const merged = selected
+        .map(getCellContent)
+        .map(s => s.replace(/\s+$/g, ''))   // trim trailing whitespace per block
+        .filter(s => s.trim() !== '')
+        .join('\n\n');
+
+    // Remove all but the first selected cell
+    selected.slice(1).forEach(c => c.remove());
+
+    if (isCode) {
+        const cm = first.querySelector('.CodeMirror');
+        if (cm && cm.CodeMirror) {
+            cm.CodeMirror.setValue(merged);
+            cm.CodeMirror.refresh();
+        } else {
+            const script = first.querySelector('script[type="text/x-sage"]');
+            if (script) script.textContent = merged;
+            reprocessNotebook();
+        }
+    } else {
+        if (first.cmEditor) {
+            first.cmEditor.setValue(merged);
+            first.cmEditor.refresh();
+            const preview = first.querySelector('.markdown-preview');
+            if (preview) {
+                preview.classList.remove('empty-markdown-preview');
+                renderMarkdownWithCM(first.cmEditor, preview);
+            }
+        }
+    }
+
+    resetBulkSelection();
+    removeSageCellNumbering();
+    addSageCellNumbering();
+    cleanupComputeDivs();
+    updateBulkToolbar();
+}
+
+// Convert all selected cells to their opposite type in one pass.
+// Nodes are swapped first, then the notebook is reprocessed exactly once.
+function bulkConvertType() {
+    const selected = getSelectedCells(); // document order
+    if (selected.length === 0) return;
+
+    selected.forEach(cell => {
+        const content = getCellContent(cell);
+        let newNode;
+
+        if (cell.classList.contains('nb-code-cell')) {
+            // code -> markdown (createMarkdownCell adds its own control bar)
+            newNode = createMarkdownCell(content);
+        } else if (cell.classList.contains('nb-markdown-cell')) {
+            // markdown -> code (code cells need the bar added manually)
+            newNode = createCodeCell(content);
+            addControlBar(newNode);
+        } else {
+            return;
+        }
+
+        cell.parentNode.replaceChild(newNode, cell);
+    });
+
+    reprocessNotebook();   // single pass for the whole selection
+    removeSageCellNumbering();
+    addSageCellNumbering();
+    cleanupComputeDivs();
+    resetBulkSelection();  // old nodes are gone, so clear stale selection state
+}
+
+// ---- Bulk toolbar ----------------------------------------------------------
+function createBulkToolbar() {
+    const bar = document.createElement('div');
+    bar.id = 'bulk-action-toolbar';
+
+    const count = document.createElement('span');
+    count.className = 'bulk-count';
+    count.textContent = '0 selected';
+    bar.appendChild(count);
+
+    // Flexible button builder.
+    //   label   : text to show (omit for icon-only)
+    //   icon    : key from iconDictionary (omit for text-only)
+    //   title   : tooltip (falls back to label)
+    //   cls     : extra classes
+    //   onClick : handler
+    // When both label and icon are present, icon comes first.
+    const mkBtn = ({ label, icon, title, cls, onClick }) => {
+        const b = document.createElement('button');
+        b.className = 'bulk-btn ' + (cls || '');
+        b.title = title || label || '';
+
+        if (icon && iconDictionary[icon]) {
+            const span = document.createElement('span');
+            span.className = 'bulk-btn-icon';
+            span.innerHTML = iconDictionary[icon];
+            b.appendChild(span);
+        }
+        if (label) {
+            const txt = document.createElement('span');
+            txt.className = 'bulk-btn-label';
+            txt.textContent = label;
+            b.appendChild(txt);
+        }
+        if (icon && !label) b.classList.add('bulk-btn-icon-only');
+
+        b.onclick = onClick;
+        return b;
+    };
+
+    bar.appendChild(mkBtn({ label: 'Select All', title: 'Select every cell', onClick: selectAllBulkCells }));
+    bar.appendChild(mkBtn({ label: 'Clear selection', title: 'Clear selection', onClick: resetBulkSelection }));
+    bar.appendChild(mkBtn({ label: 'Join', title: 'Merge selected cells (Alt+J)', cls: 'bulk-merge-btn bulk-needs-one', onClick: bulkMergeSelected }));
+    bar.appendChild(mkBtn({ label: 'Convert', title: 'Convert selected to opposite type', cls: 'bulk-needs-one', onClick: bulkConvertType }));
+    bar.appendChild(mkBtn({ icon: 'moveUp', title: 'Move selected up', cls: 'bulk-needs-one', onClick: () => bulkMove('up') }));
+    bar.appendChild(mkBtn({ icon: 'moveDown', title: 'Move selected down', cls: 'bulk-needs-one', onClick: () => bulkMove('down') }));
+    bar.appendChild(mkBtn({ icon: 'duplicate', title: 'Duplicate selected (copies go after the last selected cell)', cls: 'bulk-needs-one', onClick: bulkDuplicate }));
+    bar.appendChild(mkBtn({ icon: 'bin', title: 'Delete selected', cls: 'bulk-needs-one bulk-delete-btn', onClick: bulkDelete }));
+    bar.appendChild(mkBtn({ icon: 'end', title: 'Hide checkboxes', cls: 'bulk-close-btn', onClick: hideBulkCheckboxes }));
+
+    return bar;
+}
+function showBulkToolbar() {
+    let bar = document.getElementById('bulk-action-toolbar');
+    if (!bar) {
+        bar = createBulkToolbar();
+        document.body.appendChild(bar);
+    }
+    bar.style.display = 'flex';
+}
+function hideBulkToolbar() {
+    const bar = document.getElementById('bulk-action-toolbar');
+    if (bar) bar.style.display = 'none';
+}
+function updateBulkToolbar() {
+    const bar = document.getElementById('bulk-action-toolbar');
+    if (!bar) return;
+    const count = getSelectedCells().length;
+
+    const label = bar.querySelector('.bulk-count');
+    if (label) label.textContent = count + ' selected';
+
+    const mergeBtn = bar.querySelector('.bulk-merge-btn');
+    if (mergeBtn) mergeBtn.disabled = count < 2;
+
+    bar.querySelectorAll('.bulk-needs-one').forEach(b => {
+        if (!b.classList.contains('bulk-merge-btn')) b.disabled = count < 1;
+    });
+}
+
+// ---- Alt+T current-cell detection -----------------------------------------
+function getCurrentCellForShortcut() {
+    const focusedCM = document.querySelector('.CodeMirror-focused');
+    if (focusedCM) {
+        const cell = focusedCM.closest('.nb-cell');
+        if (cell) return cell;
+    }
+    const active = document.activeElement;
+    if (active && active.closest) {
+        const cell = active.closest('.nb-cell');
+        if (cell) return cell;
+    }
+    return null;
+}
+
+// Alt+T special behaviour (auto show/hide), exclusive to the shortcut.
+function shortcutToggleSelectCell() {
+    const cell = getCurrentCellForShortcut();
+    if (!cell) return;
+
+    if (!bulkCheckboxesVisible) {
+        // No selection possible yet -> reveal checkboxes AND select this cell.
+        showBulkCheckboxes();
+        setCellSelected(cell, true);
+    } else {
+        const wasSelected = cell.classList.contains('cell-bulk-selected');
+        setCellSelected(cell, !wasSelected);
+        // Deselecting the only selected cell hides the checkboxes again.
+        if (wasSelected && getSelectedCells().length === 0) {
+            hideBulkCheckboxes();
+        }
+    }
+}
+
+// ---- Keyboard shortcuts (Alt+J merge, Alt+T toggle select) -----------------
+// e.code is layout-independent (avoids Mac Alt producing special chars).
+document.addEventListener('keydown', function (e) {
+    if (!e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.code === 'KeyJ') {
+        e.preventDefault();
+        bulkMergeSelected();
+    } else if (e.code === 'KeyT') {
+        e.preventDefault();
+        shortcutToggleSelectCell();
+    }
+});
+
+
+// ---- Keep new cells in sync while checkbox mode is active ------------------
+function setupBulkCellObserver() {
+    const worksheet = document.querySelector('.nb-worksheet');
+    if (!worksheet) { setTimeout(setupBulkCellObserver, 500); return; }
+
+    const obs = new MutationObserver(mutations => {
+        if (!bulkCheckboxesVisible) return;
+        mutations.forEach(m => {
+            m.addedNodes.forEach(node => {
+                if (node.nodeType === 1 && node.classList && node.classList.contains('nb-cell')) {
+                    addCellCheckbox(node);
+                }
+            });
+        });
+    });
+    obs.observe(worksheet, { childList: true });
+}
+
+// ---- Make sure checkboxes/highlights never leak into the saved HTML --------
+if (typeof saveHtml === 'function') {
+    const _origSaveHtml = saveHtml;
+    saveHtml = function () {
+        try { hideBulkCheckboxes(); } catch (e) { /* no-op */ }
+        return _origSaveHtml.apply(this, arguments);
+    };
+}
+
+
+/* ============================================================
+   NOTEBOOK EDIT HISTORY  +  UNDO / REDO   (session-only)  v2
+   Append this AFTER the main notebook script has loaded.
+   ============================================================ */
+(function () {
+
+    const HISTORY_LIMIT = 70; 
+
+    // ---------- tiny helpers -------------------------------------------------
+    function clean(s) { return String(s || '').replace(/[\u200B\u200C\u200D\uFEFF]/g, ''); }
+    function getWorksheet() { return document.querySelector('.nb-worksheet'); }
+    function getAllCellsArray() {
+        const ws = getWorksheet();
+        return Array.from((ws || document).querySelectorAll('.nb-cell'));
+    }
+    function cellIndex(cell) { return getAllCellsArray().indexOf(cell); }
+    function cellAtIndex(i) { return getAllCellsArray()[i] || null; }
+
+    function getCodeContent(cell) {
+        const sc = cell.querySelector('.sagecell_input .CodeMirror');
+        if (sc && sc.CodeMirror) return clean(sc.CodeMirror.getValue());
+        const cm = cell.querySelector('.CodeMirror');
+        if (cm && cm.CodeMirror) return clean(cm.CodeMirror.getValue());
+        const script = cell.querySelector('script[type="text/x-sage"]');
+        if (script) return clean(script.textContent || '');
+        const nbInput = cell.querySelector('nb-input');
+        if (nbInput) return clean(nbInput.textContent || '');
+        return '';
+    }
+    function getMdContent(cell) {
+        if (cell.cmEditor) return clean(cell.cmEditor.getValue());
+        const ta = cell.querySelector('textarea');
+        if (ta) return clean(ta.value || ta.getAttribute('data-original') || '');
+        return '';
+    }
+    function serializeCell(cell) {
+        if (!cell) {
+            // This indicates an index went stale — don't crash, but make it visible.
+            console.warn('History: serializeCell(null) — a cell index is stale.');
+            return { type: 'code', content: '' };
+        }
+        if (cell.classList.contains('nb-markdown-cell'))
+            return { type: 'markdown', content: getMdContent(cell) };
+        return { type: 'code', content: getCodeContent(cell) };
+    }
+
+    // ---------- low-level primitives (used by undo/redo) ---------------------
+    function buildCell(data) {
+        return (data.type === 'markdown')
+            ? createMarkdownCell(data.content)   // adds its own control bar (async)
+            : createCodeCell(data.content);
+    }
+
+    function insertCellsAt(index, dataArray) {
+        const cells = getAllCellsArray();
+        let parent, refNode;
+        if (index < cells.length) {
+            // Insert next to the real neighbouring cell — this stays correct even
+            // if cells live in different parents (e.g. after makeTransferData).
+            refNode = cells[index];
+            parent = refNode.parentNode;
+        } else if (cells.length) {
+            const last = cells[cells.length - 1];
+            parent = last.parentNode;
+            refNode = last.nextSibling;
+        } else {
+            parent = getWorksheet();
+            refNode = null;
+        }
+        if (!parent) { console.warn('History: no parent for insert — aborting.'); return; }
+
+        dataArray.forEach(data => {
+            const node = buildCell(data);
+            parent.insertBefore(node, refNode);
+            if (data.type === 'code') addControlBar(node);
+        });
+        reprocessNotebook();
+        removeSageCellNumbering(); addSageCellNumbering();
+        cleanupComputeDivs();
+    }
+
+    // Removes `count` cells starting at `index` and RETURNS their current
+    // serialized content (this is what makes redo content-accurate).
+    function removeCellsAt(index, count) {
+        const removed = [];
+        for (let i = 0; i < count; i++) {
+            const cell = getAllCellsArray()[index]; // re-read; next cell shifts into `index`
+            if (!cell) {
+                console.warn(`History: wanted to remove ${count} cell(s) at index ${index}, ` +
+                             `only found ${removed.length} — index drift?`);
+                break;
+            }
+            removed.push(serializeCell(cell));       // capture CURRENT content
+            cell.remove();
+        }
+        removeSageCellNumbering(); addSageCellNumbering();
+        cleanupComputeDivs();
+        return removed;
+    }
+
+    function replaceCellAt(index, data) {
+        const cell = cellAtIndex(index);
+        if (!cell) {
+            console.warn('History: replaceCellAt found no cell at index', index);
+            return null;
+        }
+        const old = serializeCell(cell);             // capture CURRENT content
+        const node = buildCell(data);
+        cell.parentNode.replaceChild(node, cell);
+        if (data.type === 'code') addControlBar(node);
+        reprocessNotebook();
+        removeSageCellNumbering(); addSageCellNumbering();
+        cleanupComputeDivs();
+        return old;
+    }
+
+    function setCellContentAt(index, content) {
+        const cell = cellAtIndex(index);
+        if (!cell) return '';
+        const old = serializeCell(cell).content;
+        if (cell.classList.contains('nb-markdown-cell')) {
+            if (cell.cmEditor) {
+                cell.cmEditor.setValue(content);
+                const prev = cell.querySelector('.markdown-preview');
+                if (prev) renderMarkdownWithCM(cell.cmEditor, prev);
+            }
+        } else {
+            const cm = cell.querySelector('.CodeMirror');
+            if (cm && cm.CodeMirror) { cm.CodeMirror.setValue(content); cm.CodeMirror.refresh(); }
+            else {
+                const script = cell.querySelector('script[type="text/x-sage"]');
+                if (script) script.textContent = content;
+            }
+        }
+        return old;
+    }
+
+    function moveCellByIndex(from, to) {
+        const cells = getAllCellsArray();
+        const node = cells[from];
+        if (!node) return;
+        const remaining = cells.filter((_, i) => i !== from);
+        const target = remaining[to] || null;
+        // Use the TARGET's parent so moves work across re-parented sections too
+        const parent = target ? target.parentNode
+            : (remaining.length ? remaining[remaining.length - 1].parentNode : node.parentNode);
+        if (target) parent.insertBefore(node, target);
+        else parent.appendChild(node);
+        removeSageCellNumbering(); addSageCellNumbering();
+    }
+
+    // Reorder LIVE nodes (preserves Sage outputs). Returns false if it can't
+    // be done safely (a node was replaced/removed, or parents differ).
+    function reorderLiveNodes(order) {
+        if (!order.length) return true;
+        const parent = order[0].parentNode;
+        if (!parent || order.some(n => !n.isConnected || n.parentNode !== parent)) return false;
+        order.forEach(n => parent.appendChild(n));
+        removeSageCellNumbering(); addSageCellNumbering();
+        return true;
+    }
+
+    // full-worksheet snapshot / restore (fallback for bulk ops)
+    function snapshotNotebook() { return getAllCellsArray().map(serializeCell); }
+    function restoreNotebook(snapshot) {
+        const cells = getAllCellsArray();
+        const parent = cells.length ? cells[0].parentNode : getWorksheet();
+        cells.forEach(c => c.remove());
+        snapshot.forEach(data => {
+            const node = buildCell(data);
+            parent.appendChild(node);
+            if (data.type === 'code') addControlBar(node);
+        });
+        reprocessNotebook();
+        removeSageCellNumbering(); addSageCellNumbering();
+        cleanupComputeDivs();
+    }
+    function snapshotsDiffer(a, b) {
+        if (a.length !== b.length) return true;
+        for (let i = 0; i < a.length; i++) {
+            if (a[i].type !== b[i].type || a[i].content !== b[i].content) return true;
+        }
+        return false;
+    }
+
+    // ---------- the history manager -----------------------------------------
+    const History = {
+        undoStack: [],
+        redoStack: [],
+        log: [],
+        max: HISTORY_LIMIT,
+        suspended: false,
+        _lastStep: 0,
+        _stepMs: 150,   // throttle: protects against Ctrl+Z spam racing async re-init
+
+        _canStep() {
+            const now = Date.now();
+            if (now - this._lastStep < this._stepMs) return false;
+            this._lastStep = now;
+            return true;
+        },
+
+        push(cmd) {
+            if (this.suspended) return;
+            this.undoStack.push(cmd);
+            if (this.undoStack.length > this.max) this.undoStack.shift();
+            this.redoStack = [];                  // a new action invalidates the redo branch
+            this.logEvent('do', cmd.label, cmd.meta);
+            this.updateUI();
+        },
+        undo() {
+            if (!this.undoStack.length || !this._canStep()) return;
+            const cmd = this.undoStack.pop();
+            this.suspended = true;
+            try { cmd.undo(); } catch (e) { console.error('Undo failed:', e); }
+            this.suspended = false;
+            this.redoStack.push(cmd);
+            this.logEvent('undo', cmd.label, cmd.meta);
+            this.updateUI();
+        },
+        redo() {
+            if (!this.redoStack.length || !this._canStep()) return;
+            const cmd = this.redoStack.pop();
+            this.suspended = true;
+            try { cmd.redo(); } catch (e) { console.error('Redo failed:', e); }
+            this.suspended = false;
+            this.undoStack.push(cmd);
+            this.logEvent('redo', cmd.label, cmd.meta);
+            this.updateUI();
+        },
+        logEvent(kind, label, meta) {
+            this.log.push({ time: new Date(), kind, label, meta: meta || {} });
+            if (this.log.length > 500) this.log.shift();
+            this.refreshPanel();
+        },
+        clear() {
+            this.undoStack = []; this.redoStack = []; this.log = [];
+            this.updateUI(); this.refreshPanel(true);
+        },
+
+        // --- UI ---
+        updateUI() {
+            const u = document.getElementById('undoButton');
+            const r = document.getElementById('redoButton');
+            if (u) { u.disabled = !this.undoStack.length; u.title = `Undo (Ctrl+Z) — ${this.undoStack.length}`; }
+            if (r) { r.disabled = !this.redoStack.length; r.title = `Redo (Ctrl+Shift+Z) — ${this.redoStack.length}`; }
+        },
+        refreshPanel(force) {
+            const panel = document.getElementById('history-panel');
+            const body = document.getElementById('history-panel-body');
+            if (!body) return;
+            // Don't rebuild the DOM on every event while the panel is hidden
+            if (!force && panel && panel.style.display === 'none') return;
+            body.innerHTML = '';
+            for (let i = this.log.length - 1; i >= 0; i--) {
+                const e = this.log[i];
+                const row = document.createElement('div');
+                row.style.cssText = 'padding:4px 8px;border-bottom:1px solid #eee;font-size:12px;display:flex;gap:8px;align-items:baseline;';
+                const tag = { do: '#4CAF50', undo: '#e67e22', redo: '#2980b9' }[e.kind] || '#777';
+                row.innerHTML =
+                    `<span style="color:${tag};font-weight:700;text-transform:uppercase;width:42px;">${e.kind}</span>` +
+                    `<span style="flex:1;">${e.label}</span>` +
+                    `<span style="color:#aaa;">${e.time.toLocaleTimeString()}</span>`;
+                body.appendChild(row);
+            }
+        }
+    };
+    window.NotebookHistory = History;   // exposed for debugging / manual calls
+
+    // ---------- invalidate history after UNTRACKED structural changes --------
+    // These functions rewrite/insert cells outside the command system, which
+    // would leave stale indices on the stacks. Safest response: clear history.
+    ['restoreNotebookFromText', 'importFromIPYNB', 'applyPreloadCells', 'makeTransferData']
+        .forEach(name => {
+            const orig = window[name];
+            if (typeof orig !== 'function') return;
+            window[name] = function (...args) {
+                const result = orig.apply(this, args);
+                History.clear();
+                History.logEvent('do', name + '() — history cleared (untracked change)', {});
+                return result;
+            };
+        });
+
+    // ---------- wrap the single-cell mutating functions ----------------------
+    // KEY IDEA: commands keep a mutable `data` field. Whenever they destroy a
+    // cell (removeCellsAt / replaceCellAt) they re-capture its CURRENT content,
+    // so the opposite direction always rebuilds exactly what was on screen.
+
+    const _addCell = addCell;
+    addCell = function (referenceCell, position) {
+        if (History.suspended) return _addCell(referenceCell, position);
+        const refIdx = cellIndex(referenceCell);
+        const countBefore = getAllCellsArray().length;
+        _addCell(referenceCell, position);
+        if (getAllCellsArray().length === countBefore) return;   // nothing happened
+        const idx = (position === 'above') ? refIdx : refIdx + 1;
+        History.push({
+            label: 'Add code cell ' + position,
+            meta: { op: 'add', index: idx, count: 1 },
+            data: [{ type: 'code', content: '' }],
+            undo() { this.data = removeCellsAt(idx, 1); },   // capture typed content
+            redo() { insertCellsAt(idx, this.data); }
+        });
+    };
+
+    const _addFive = addFiveCells;
+    addFiveCells = function (referenceCell, position) {
+        if (History.suspended) return _addFive(referenceCell, position);
+        const refIdx = cellIndex(referenceCell);
+        const countBefore = getAllCellsArray().length;
+        _addFive(referenceCell, position);
+        const added = getAllCellsArray().length - countBefore;
+        if (added <= 0) return;
+        const idx = (position === 'above') ? refIdx : refIdx + 1;
+        History.push({
+            label: 'Add ' + added + ' code cells ' + position,
+            meta: { op: 'add', index: idx, count: added },
+            data: Array.from({ length: added }, () => ({ type: 'code', content: '' })),
+            undo() { this.data = removeCellsAt(idx, this.data.length); },
+            redo() { insertCellsAt(idx, this.data); }
+        });
+    };
+
+    const _addMd = addMarkdownCell;
+    addMarkdownCell = function (referenceCell, position, initialContent = '') {
+        if (History.suspended) return _addMd(referenceCell, position, initialContent);
+        const refIdx = cellIndex(referenceCell);
+        const countBefore = getAllCellsArray().length;
+        const result = _addMd(referenceCell, position, initialContent);
+        if (getAllCellsArray().length === countBefore) return result;
+        const idx = (position === 'above') ? refIdx : refIdx + 1;
+        History.push({
+            label: 'Add markdown cell ' + position,
+            meta: { op: 'add', index: idx, count: 1 },
+            data: [{ type: 'markdown', content: initialContent }],
+            undo() { this.data = removeCellsAt(idx, 1); },   // capture edited content
+            redo() { insertCellsAt(idx, this.data); }
+        });
+        return result;                       // callers (e.g. copyOutputToMarkdown) need it
+    };
+
+    const _delete = deleteCell;
+    deleteCell = function (cell) {
+        if (History.suspended) return _delete(cell);
+        const idx = cellIndex(cell);
+        if (idx === -1) return _delete(cell);   // unknown cell — don't record garbage
+        const data = serializeCell(cell);       // capture before deletion
+        _delete(cell);
+        History.push({
+            label: 'Delete ' + data.type + ' cell',
+            meta: { op: 'delete', index: idx, cellType: data.type },
+            data: [data],
+            undo() { insertCellsAt(idx, this.data); },
+            redo() { this.data = removeCellsAt(idx, 1); }    // re-capture if edited after undo
+        });
+    };
+
+    const _move = moveCell;
+    moveCell = function (cell, direction) {
+        if (History.suspended) return _move(cell, direction);
+        const from = cellIndex(cell);
+        _move(cell, direction);
+        const to = cellIndex(cell);
+        if (from === to || from === -1 || to === -1) return;   // hit top/bottom — nothing happened
+        History.push({
+            label: 'Move cell ' + direction,
+            meta: { op: 'move', from, to },
+            // moves the live node, so content/output are preserved automatically
+            undo() { moveCellByIndex(to, from); },
+            redo() { moveCellByIndex(from, to); }
+        });
+    };
+
+    const _dup = duplicateCell;
+    duplicateCell = function (cell) {
+        if (History.suspended) return _dup(cell);
+        const idx = cellIndex(cell);
+        const countBefore = getAllCellsArray().length;
+        _dup(cell);
+        // GUARD: duplicateCell silently does nothing for unknown cell types.
+        // Without this check we'd record a command that deletes an innocent cell.
+        if (getAllCellsArray().length === countBefore) return;
+        const insertIdx = idx + 1;           // copy is placed right after the original
+        History.push({
+            label: 'Duplicate cell',
+            meta: { op: 'duplicate', index: insertIdx },
+            data: [serializeCell(cellAtIndex(insertIdx))],   // snapshot the copy
+            undo() { this.data = removeCellsAt(insertIdx, 1); },
+            redo() { insertCellsAt(insertIdx, this.data); }
+        });
+    };
+
+    const _c2m = convertToMarkdown;
+    convertToMarkdown = function (codeCell) {
+        if (History.suspended) return _c2m(codeCell);
+        const idx = cellIndex(codeCell);
+        const before = serializeCell(codeCell);
+        _c2m(codeCell);
+        const after = serializeCell(cellAtIndex(idx));
+        History.push({
+            label: 'Convert → markdown',
+            meta: { op: 'convert', index: idx },
+            before, after,
+            // replaceCellAt returns the cell's CURRENT content, so both
+            // directions stay in sync with any edits made in between.
+            undo() { this.after = replaceCellAt(idx, this.before) || this.after; },
+            redo() { this.before = replaceCellAt(idx, this.after) || this.before; }
+        });
+    };
+
+    const _c2c = convertToCode;
+    convertToCode = function (markdownCell) {
+        if (History.suspended) return _c2c(markdownCell);
+        const idx = cellIndex(markdownCell);
+        const before = serializeCell(markdownCell);
+        _c2c(markdownCell);
+        const after = serializeCell(cellAtIndex(idx));
+        History.push({
+            label: 'Convert → code',
+            meta: { op: 'convert', index: idx },
+            before, after,
+            undo() { this.after = replaceCellAt(idx, this.before) || this.after; },
+            redo() { this.before = replaceCellAt(idx, this.after) || this.before; }
+        });
+    };
+
+    const _split = splitCellAtCursor;
+    splitCellAtCursor = function (cell) {
+        if (History.suspended) return _split(cell);
+        const idx = cellIndex(cell);
+        const before = getAllCellsArray().length;
+        const originalContent = serializeCell(cell).content;
+        _split(cell);
+        if (getAllCellsArray().length === before) return;   // cursor at end -> no split
+        History.push({
+            label: 'Split cell',
+            meta: { op: 'split', index: idx },
+            originalContent,
+            firstContent: serializeCell(cellAtIndex(idx)).content,
+            secondData: serializeCell(cellAtIndex(idx + 1)),
+            undo() {
+                // capture current state of both halves before merging back
+                this.firstContent = serializeCell(cellAtIndex(idx)).content;
+                const removed = removeCellsAt(idx + 1, 1);
+                if (removed.length) this.secondData = removed[0];
+                setCellContentAt(idx, this.originalContent);
+            },
+            redo() {
+                // capture any edits to the merged cell before splitting again
+                this.originalContent = serializeCell(cellAtIndex(idx)).content;
+                setCellContentAt(idx, this.firstContent);
+                insertCellsAt(idx + 1, [this.secondData]);
+            }
+        });
+    };
+
+    // ---------- bulk operations ----------------------------------------------
+
+    // Snapshot-based wrapper (fallback). NOTE: undo/redo through a snapshot
+    // rebuilds the cells, so Sage OUTPUTS of affected cells are lost.
+    function wrapBulk(orig, label) {
+        return function (...args) {
+            if (History.suspended) return orig.apply(this, args);
+            const before = snapshotNotebook();
+            History.suspended = true;               // prevent inner moveCell/etc. from recording
+            let result;
+            try { result = orig.apply(this, args); }
+            finally { History.suspended = false; }
+            const after = snapshotNotebook();
+            if (snapshotsDiffer(before, after)) {
+                History.push({
+                    label,
+                    meta: { op: 'bulk', cells: after.length },
+                    before, after,
+                    undo() { restoreNotebook(this.before); },
+                    redo() { restoreNotebook(this.after); }
+                });
+            }
+            return result;
+        };
+    }
+    if (typeof bulkDelete === 'function')        bulkDelete        = wrapBulk(bulkDelete,        'Bulk delete');
+    if (typeof bulkDuplicate === 'function')     bulkDuplicate     = wrapBulk(bulkDuplicate,     'Bulk duplicate');
+    if (typeof bulkMergeSelected === 'function') bulkMergeSelected = wrapBulk(bulkMergeSelected, 'Bulk merge');
+    if (typeof bulkConvertType === 'function')   bulkConvertType   = wrapBulk(bulkConvertType,   'Bulk convert');
+
+    // bulkMove gets special treatment: it only reorders cells, so undo/redo can
+    // move the LIVE nodes back (outputs preserved). Snapshots are kept only as
+    // a fallback in case some cell was replaced/removed in the meantime.
+    if (typeof bulkMove === 'function') {
+        const _bulkMove = bulkMove;
+        bulkMove = function (direction) {
+            if (History.suspended) return _bulkMove(direction);
+            const beforeOrder = getAllCellsArray();
+            const beforeSnap = snapshotNotebook();
+            History.suspended = true;
+            try { _bulkMove(direction); }
+            finally { History.suspended = false; }
+            const afterOrder = getAllCellsArray();
+            const changed = beforeOrder.some((n, i) => n !== afterOrder[i]);
+            if (!changed) return;
+            const afterSnap = snapshotNotebook();
+            History.push({
+                label: 'Bulk move ' + direction,
+                meta: { op: 'bulk-move' },
+                beforeOrder, afterOrder, beforeSnap, afterSnap,
+                undo() { if (!reorderLiveNodes(this.beforeOrder)) restoreNotebook(this.beforeSnap); },
+                redo() { if (!reorderLiveNodes(this.afterOrder)) restoreNotebook(this.afterSnap); }
+            });
+        };
+    }
+
+    // ---------- keyboard shortcuts ------------------------------------------
+    document.addEventListener('keydown', function (e) {
+        if (e.altKey) return;
+        if (!(e.ctrlKey || e.metaKey)) return;
+        const k = e.key.toLowerCase();
+        const inEditor = document.querySelector('.CodeMirror-focused')
+            || ['TEXTAREA', 'INPUT'].includes((document.activeElement || {}).tagName);
+        if (k === 'z' && !e.shiftKey) {
+            if (inEditor) return;               // let CodeMirror handle in-cell undo
+            e.preventDefault(); History.undo();
+        } else if ((k === 'z' && e.shiftKey) || k === 'y') {
+            if (inEditor) return;
+            e.preventDefault(); History.redo();
+        }
+    });
+
+    // ---------- navbar buttons + history panel ------------------------------
+    const ICONS = {
+        undo: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10H8"/></svg>`,
+        redo: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h8"/></svg>`,
+        hist: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`
+    };
+
+    function buildPanel() {
+        if (document.getElementById('history-panel')) return;
+        const panel = document.createElement('div');
+        panel.id = 'history-panel';
+        panel.style.cssText =
+            'position:fixed;bottom:0;right:0;width:320px;max-height:50vh;background:#fff;' +
+            'box-shadow:0 -2px 12px rgba(0,0,0,.2);border-radius:8px 0 0 0;z-index:9995;' +
+            'display:none;flex-direction:column;font-family:Arial,sans-serif;overflow:hidden;';
+        const header = document.createElement('div');
+        header.style.cssText =
+            'padding:8px 12px;background:var(--main-color,#4CAF50);color:#fff;display:flex;' +
+            'justify-content:space-between;align-items:center;font-weight:700;';
+        header.innerHTML = '<span>Edit History</span>';
+        const close = document.createElement('button');
+        close.textContent = '×';
+        close.style.cssText = 'background:none;border:none;color:#fff;font-size:20px;cursor:pointer;';
+        close.onclick = () => panel.style.display = 'none';
+        header.appendChild(close);
+        const body = document.createElement('div');
+        body.id = 'history-panel-body';
+        body.style.cssText = 'overflow-y:auto;flex:1;';
+        panel.appendChild(header);
+        panel.appendChild(body);
+        document.body.appendChild(panel);
+    }
+
+    function initUI(attempt = 0) {
+        const navbar = document.getElementById('navbar');
+        if (!navbar) { if (attempt < 60) setTimeout(() => initUI(attempt + 1), 200); return; }
+        if (document.getElementById('undoButton')) return;
+
+        const undoBtn = document.createElement('button');
+        undoBtn.id = 'undoButton'; undoBtn.innerHTML = ICONS.undo;
+        undoBtn.onclick = () => History.undo();
+
+        const redoBtn = document.createElement('button');
+        redoBtn.id = 'redoButton'; redoBtn.innerHTML = ICONS.redo;
+        redoBtn.onclick = () => History.redo();
+
+        navbar.insertBefore(redoBtn, navbar.firstChild);
+        navbar.insertBefore(undoBtn, navbar.firstChild);
+        History.updateUI();
+    }
+    window.addEventListener('load', () => setTimeout(initUI, 600));
+
+})();
+
+// Version 20
+
+function getMarkdownCellContentForSaving(cell) {
+    // Prefer CodeMirror because it has the newest unsaved editor value.
+    if (cell.cmEditor && typeof cell.cmEditor.getValue === 'function') {
+        return cell.cmEditor.getValue();
+    }
+
+    // After simplification or for older cells, use the textarea.
+    const textarea = cell.querySelector('textarea');
+    if (textarea) {
+        return textarea.value || textarea.getAttribute('data-original') || '';
+    }
+
+    // Final fallback for simplified saved cells.
+    const preview = cell.querySelector('.markdown-preview');
+    if (preview) {
+        return preview.getAttribute('data-original-markdown') || '';
+    }
+
+    return '';
+}
+
+function removeEmptyMarkdownCellsBeforeSaving() {
+    const markdownCells = document.querySelectorAll(
+        '.nb-cell.nb-markdown-cell'
+    );
+
+    let removedCount = 0;
+
+    markdownCells.forEach(cell => {
+        const content = getMarkdownCellContentForSaving(cell)
+            .replace(/[\u200B\u200C\u200D\uFEFF]/g, '') // zero-width chars
+            .replace(/\u00A0/g, ' ');                   // non-breaking spaces
+
+        // Delete cells that are truly empty or contain whitespace only.
+        if (content.trim() === '') {
+            cell.remove();
+            removedCount++;
+        }
+    });
+
+    if (removedCount > 0) {
+        console.log(`Removed ${removedCount} empty markdown cell(s) before saving.`);
+    }
+
+    return removedCount;
+}
